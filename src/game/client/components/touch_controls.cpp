@@ -1741,7 +1741,7 @@ void CTouchControls::RenderButtonEditor()
 		FirstOpen = false;
 	}
 	if(!pLongPressFingerState.has_value() && vTouchFingerStates.size() != 0)
-		pLongPressFingerState = vTouchFingerStates;
+		pLongPressFingerState = &vTouchFingerStates[0];
 		
 	//Find long press button. LongPress == true means the first fingerstate long pressed.
 	if(pLongPressFingerState.has_value())
@@ -1830,14 +1830,16 @@ void CTouchControls::RenderButtonEditor()
 	{
 		if(ActiveFingerState.has_value() && ZoomFingerState == std::nullopt)
 		{
-			vec2 UnitXYDelta = ActiveFingerState.m_Delta * 1000000;
+			vec2 UnitXYDelta = ActiveFingerState->m_Delta * 1000000;
 			SelectedButton->m_UnitRect.m_X += UnitXYDelta.x;
 			SelectedButton->m_UnitRect.m_Y += UnitXYDelta.y;
 			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
 		}
 		if(ActiveFingerState.has_value() && ZoomFingerState.has_value())
 		{
-			vec2 UnitWHDelta = (std::abs(ActiveFingerState - ZoomFingerState) - std::abs(ZoomStartPos)) * 1000000;
+			vec2 UnitWHDelta;
+			UnitWHDelta.x = (std::abs(ActiveFingerState.x - ZoomFingerState.x) - std::abs(ZoomStartPos.x)) * 1000000;
+			UnitWHDelta.y = (std::abs(ActiveFingerState.y - ZoomFingerState.y) - std::abs(ZoomStartPos.y)) * 1000000;
 			SelectedButton->m_UnitRect.m_W += UnitWHDelta.x;
 			SelectedButton->m_UnitRect.m_H += UnitWHDelta.y;
 			SelectedButton->m_UnitRect.m_W = clamp(SelectedButton->m_UnitRect.m_W, 50000, 500000);
@@ -1865,10 +1867,10 @@ void CTouchControls::RenderButtonEditor()
 			SelectedButton->m_UnitRect = ShownRect;
 		}
 	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(Gameclient()->m_TouchControls));
-	    TmpButton.m_UnitRect = ShownRect;
-	    TmpButton.UpdateScreenFromUnitRect();
-	    TmpButton.m_Shape = SelectedButton->m_Shape;
-	    TmpButton.Render();
+	    TmpButton->m_UnitRect = ShownRect;
+	    TmpButton->UpdateScreenFromUnitRect();
+	    TmpButton->m_Shape = SelectedButton->m_Shape;
+	    TmpButton->Render();
 	}
 	
 	if(IfCallSettings)
@@ -1894,7 +1896,7 @@ void CTouchControls::RenderButtonEditor()
 	                TpString = SavedX;
 	                break;
 	            }
-	        if(std::stoi(TpSrting) + std::stoi(SavedW) > 1000000)
+	        if(std::stoi(TpString) + std::stoi(SavedW) > 1000000)
 	            SavedX = std::to_string(1000000 - std::stoi(SavedW));
 	        else
 	            SavedX = TpString;
@@ -1913,7 +1915,7 @@ void CTouchControls::RenderButtonEditor()
 	                TpString = SavedY;
 	                break;
 	            }
-	        if(std::stoi(TpSrting) + std::stoi(SavedH) > 1000000)
+	        if(std::stoi(TpString) + std::stoi(SavedH) > 1000000)
 	            SavedY = std::to_string(1000000 - std::stoi(SavedH));
 	        else
 	            SavedY = TpString;
@@ -1932,7 +1934,7 @@ void CTouchControls::RenderButtonEditor()
 	                TpString = SavedW;
 	                break;
 	            }
-	        if(std::stoi(TpSrting) + std::stoi(SavedX) > 1000000)
+	        if(std::stoi(TpString) + std::stoi(SavedX) > 1000000)
 	            SavedW = std::to_string(1000000 - std::stoi(SavedX));
 	        else if(std::stoi(SavedW) < 50000)
 	            SavedW = std::to_string(50000);
@@ -1953,7 +1955,7 @@ void CTouchControls::RenderButtonEditor()
 	                TpString = SavedH;
 	                break;
 	            }
-	        if(std::stoi(TpSrting) + std::stoi(SavedH) > 1000000)
+	        if(std::stoi(TpString) + std::stoi(SavedH) > 1000000)
 	            SavedH = std::to_string(1000000 - std::stoi(SavedY));
 	        else if(std::stoi(SavedH) < 50000)
 	            SavedH = std::to_string(50000);
