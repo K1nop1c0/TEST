@@ -1878,9 +1878,10 @@ void CTouchControls::RenderButtonEditor()
 	    TmpButton->m_UnitRect = ShownRect;
 	    TmpButton->m_Shape = SelectedButton->m_Shape;
 	    TmpButton->m_vVisibilities = SelectedButton->m_vVisibilities;
-	    TmpButton->m_pBehavior = SelectedButton->m_pBehavior;
+	    TmpButton->m_pBehavior = std::move(SelectedButton->m_pBehavior);
 	    TmpButton->UpdateScreenFromUnitRect();
 	    TmpButton->Render();
+	    SelectedButton->m_pBehavior = std::move(TmpButton->m_pBehavior);
 	}
 	
 	if(IfCallSettings)
