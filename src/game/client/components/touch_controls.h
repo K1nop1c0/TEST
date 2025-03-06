@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <set>
 
 class CJsonWriter;
 typedef struct _json_value json_value;
@@ -578,7 +579,7 @@ private:
 	std::unique_ptr<CBindToggleTouchButtonBehavior> ParseBindToggleBehavior(const json_value *pBehaviorObject);
 	void WriteConfiguration(CJsonWriter *pWriter);
 	
-	CTouchControls::CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {});
+	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {});
 	void RenderButtonEditor();
 };
 

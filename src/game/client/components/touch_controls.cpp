@@ -1630,7 +1630,7 @@ void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
 	pWriter->EndObject();
 }
 
-CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {})
+CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {})
 {
 	if(vCheckedRects.size() == 0)
 		vCheckedRects.resize(vVisibleButtonRects.size(), false);
@@ -1660,10 +1660,16 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRec
 			});
 	}();
 	if(MainOverlappedRect == vVisibleButtonRects.end())
+	{
 		if(OverlappedTwice)
+		{
 			return {-1, -1, -1, -1};
+		}
 		else
+		{
 			return MyRect;
+		}
+	}
 	vCheckedRects[std::distance(vVisibleButtonRects.begin(), MainOverlappedRect)] = true;
 	double MinDistance = 100000000.0f;
 	CTouchControls::CUnitRect MinRect = {-1, -1, -1, -1};
@@ -1711,13 +1717,13 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRec
 
 void CTouchControls::RenderButtonEditor()
 {
-	const std::vector<IInput::CTouchFingerState> vTouchFingerStates = m_pClient->Input()->TouchFingerStates();
-	const vec2 ScreenSize = Gameclient()->m_TouchControls.CalculateScreenSize();
+	std::vector<IInput::CTouchFingerState> vTouchFingerStates = m_pClient->Input()->TouchFingerStates();
+	const vec2 ScreenSize = GameClient()->m_TouchControls.CalculateScreenSize();
 	static std::vector<bool> vVisibilities((int)EButtonVisibility::NUM_VISIBILITIES, false);
 	static bool IsSelected = false;
 	static CTouchButton *SelectedButton = nullptr;
-	static std::optional<IInput::CTouchFinger> ActiveFingerState;
-	static std::optional<IInput::CTouchFinger> ZoomFingerState;
+	static std::optional<IInput::CTouchFingerState> ActiveFingerState;
+	static std::optional<IInput::CTouchFingerState> ZoomFingerState;
 	static vec2 ZoomStartPos = {0.0f, 0.0f};
 	static bool FirstOpen = true;
 	static bool LongPress = false;
@@ -1727,7 +1733,7 @@ void CTouchControls::RenderButtonEditor()
 	static bool IfCallSettings = false;
 	static CUnitRect ShownRect;
     char EditX[16], EditY[16], EditW[16], EditH[16];
-    static std::string SavedX[16] = "0", SavedY[16] = "0", SavedW[16] = "50000", SavedH[16] = "50000";
+    static std::string SavedX = "0", SavedY = "0", SavedW = "50000", SavedH = "50000";
 	static CLineInput InputX(EditX, sizeof(EditX), 6),
 	                  InputY(EditY, sizeof(EditY), 6),
 	                  InputW(EditW, sizeof(EditW), 6),
@@ -1746,7 +1752,7 @@ void CTouchControls::RenderButtonEditor()
 	//Find long press button. LongPress == true means the first fingerstate long pressed.
 	if(pLongPressFingerState.has_value())
 	{
-    	AccumulatedDelta += pLongPressFingerState->m_Delta;
+    	AccumulatedDelta += (*pLongPressFingerState)->m_Delta;
     	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.06)
     	{
     		AccumulatedDelta = {0.0f, 0.0f};
@@ -1755,7 +1761,7 @@ void CTouchControls::RenderButtonEditor()
     	else
     	{
     		const auto Now = time_get_nanoseconds();
-    		if(Now - pLongPressFingerState->m_PressTime > 400ms)
+    		if(Now - (*pLongPressFingerState)->m_PressTime > 400ms)
     			LongPress = true;
     	}
 	}
@@ -1787,13 +1793,13 @@ void CTouchControls::RenderButtonEditor()
 		{
 			//Only Long Pressed finger "in visible button" is used for selecting a button.
 			//If Selected Button LongPressed, open setting menus.
-			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside(pLongPressFingerState->m_Position * ScreenSize))
+			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*pLongPressFingerState)->m_Position * ScreenSize))
 			{
 				if(!IsSelected || SelectedButton != &TouchButton)
 				{
 					IsSelected = true;
 					SelectedButton = &TouchButton;
-					ActiveFinger = *pLongPressFingerState;
+					ActiveFingerState = *pLongPressFingerState;
 				}
 				else if(SelectedButton == &TouchButton)
 				{
