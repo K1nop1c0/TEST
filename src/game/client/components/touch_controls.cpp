@@ -1728,7 +1728,6 @@ void CTouchControls::RenderButtonEditor()
 	static bool FirstOpen = true;
 	static bool LongPress = false;
 	static vec2 AccumulatedDelta = {0.0f, 0.0f};
-	static std::optional<float> LastPos;
 	static std::optional<IInput::CTouchFingerState*> pLongPressFingerState;
 	static bool IfCallSettings = false;
 	static CUnitRect ShownRect;
@@ -1878,6 +1877,8 @@ void CTouchControls::RenderButtonEditor()
 	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
 	    TmpButton->m_UnitRect = ShownRect;
 	    TmpButton->m_Shape = SelectedButton->m_Shape;
+	    TmpButton->m_vVisibilities = SelectedButton->m_vVisibilities;
+	    TmpButton->m_pBehavior = SelectedButton->m_pBehavior;
 	    TmpButton->UpdateScreenFromUnitRect();
 	    TmpButton->Render();
 	}
