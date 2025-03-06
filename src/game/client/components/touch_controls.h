@@ -579,7 +579,7 @@ private:
 	void WriteConfiguration(CJsonWriter *pWriter);
 	
 	CTouchControls::CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {});
-	void CTouchControls::RenderButtonEditor();
+	void RenderButtonEditor();
 };
 
 #endif
