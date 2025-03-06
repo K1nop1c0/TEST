@@ -1630,7 +1630,7 @@ void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
 	pWriter->EndObject();
 }
 
-CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {})
+CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects)
 {
 	if(vCheckedRects.size() == 0)
 		vCheckedRects.resize(vVisibleButtonRects.size(), false);
@@ -1844,8 +1844,8 @@ void CTouchControls::RenderButtonEditor()
 		if(ActiveFingerState.has_value() && ZoomFingerState.has_value())
 		{
 			vec2 UnitWHDelta;
-			UnitWHDelta.x = (std::abs(ActiveFingerState.m_Position.x - ZoomFingerState.m_Position.x) - std::abs(ZoomStartPos.x)) * 1000000;
-			UnitWHDelta.y = (std::abs(ActiveFingerState.m_Position.y - ZoomFingerState.m_Position.y) - std::abs(ZoomStartPos.y)) * 1000000;
+			UnitWHDelta.x = (std::abs(ActiveFingerState.value().m_Position.x - ZoomFingerState.value().m_Position.x) - std::abs(ZoomStartPos.x)) * 1000000;
+			UnitWHDelta.y = (std::abs(ActiveFingerState.value().m_Position.y - ZoomFingerState.value().m_Position.y) - std::abs(ZoomStartPos.y)) * 1000000;
 			SelectedButton->m_UnitRect.m_W += UnitWHDelta.x;
 			SelectedButton->m_UnitRect.m_H += UnitWHDelta.y;
 			SelectedButton->m_UnitRect.m_W = clamp(SelectedButton->m_UnitRect.m_W, 50000, 500000);
@@ -1883,7 +1883,7 @@ void CTouchControls::RenderButtonEditor()
 	
 	if(IfCallSettings)
 	{
-	    CUIRect Screen = GameClient()->m_TouchControls.Ui()->Screen();
+	    CUIRect Screen = *(GameClient()->m_TouchControls.Ui()->Screen());
 	    CUIRect Left, Right;
 	    Screen.Margin(50.0f, &Screen);
 	    Screen.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f), IGraphics::CORNER_ALL, 5.0f);
