@@ -729,7 +729,8 @@ bool CTouchControls::OnTouchState(const std::vector<IInput::CTouchFingerState> &
 		GameClient()->m_GameConsole.IsActive() ||
 		GameClient()->m_Menus.IsActive() ||
 		GameClient()->m_Emoticon.IsActive() ||
-		GameClient()->m_Spectator.IsActive())
+		GameClient()->m_Spectator.IsActive() ||
+		m_EditingActive)
 	{
 		ResetButtons();
 		return false;
@@ -754,6 +755,12 @@ void CTouchControls::OnRender()
 
 	const vec2 ScreenSize = CalculateScreenSize();
 	Graphics()->MapScreen(0.0f, 0.0f, ScreenSize.x, ScreenSize.y);
+	
+	if(m_EditingActive)
+	{
+	    RenderButtonEditor();
+	    return;
+	}
 
 	RenderButtons();
 }
@@ -1621,4 +1628,338 @@ void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
 	pWriter->EndArray();
 
 	pWriter->EndObject();
+}
+
+CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {})
+{
+	if(vCheckedRects.size() == 0)
+		vCheckedRects.resize(vVisibleButtonRects.size(), false);
+	bool OverlappedTwice = false;
+	int Iterator = -1;
+	//Border issue.
+	if(MyRect.m_X < 0)
+		MyRect.m_X = 0;
+	if(MyRect.m_Y < 0)
+		MyRect.m_Y = 0;
+	if(MyRect.m_X + MyRect.m_W > 1000000)
+		MyRect.m_X = 1000000 - MyRect.m_W;
+	if(MyRect.m_Y + MyRect.m_H > 1000000)
+		MyRect.m_Y = 1000000 - MyRect.m_H;
+	//Find the first overlapped rect, which hasn't been overlapped before. If overlapped twice, this way is blocked.
+	const auto &MainOverlappedRect = [&](){
+		return std::find_if(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&](const auto &OtherRect){
+				Iterator ++;
+				bool CheckOverlap = !(MyRect.m_X + MyRect.m_W <= OtherRect.m_X || OtherRect.m_X + OtherRect.m_W <= MyRect.m_X || MyRect.m_Y + MyRect.m_H <= OtherRect.m_Y || OtherRect.m_Y + OtherRect.m_H <= MyRect.m_Y);
+				if(CheckOverlap && vCheckedRects[Iterator])
+				{
+					OverlappedTwice = true;
+					return false;
+				}
+				else
+					return CheckOverlap;
+			});
+	}();
+	if(MainOverlappedRect == vVisibleButtonRects.end())
+		if(OverlappedTwice)
+			return {-1, -1, -1, -1};
+		else
+			return MyRect;
+	vCheckedRects[std::distance(vVisibleButtonRects.begin(), MainOverlappedRect)] = true;
+	double MinDistance = 100000000.0f;
+	CTouchControls::CUnitRect MinRect = {-1, -1, -1, -1};
+	
+	for(int Direction = 0; Direction < 4; Direction++)
+	{
+		CTouchControls::CUnitRect TmpRect = MyRect;
+		//RIGHT
+		if(Direction == 0)
+		{
+			TmpRect.m_X = (*MainOverlappedRect).m_X + (*MainOverlappedRect).m_W;
+			if(TmpRect.m_X + TmpRect.m_W > 1000000)
+				continue;
+		}
+		//BELOW
+		if(Direction == 1)
+		{
+			TmpRect.m_Y = (*MainOverlappedRect).m_Y + (*MainOverlappedRect).m_H;
+			if(TmpRect.m_Y + TmpRect.m_H > 1000000)
+				continue;
+		}
+		//LEFT
+		if(Direction == 2)
+		{
+			TmpRect.m_X = (*MainOverlappedRect).m_X - TmpRect.m_W;
+			if(TmpRect.m_X < 0)
+				continue;
+		}
+		//UP
+		if(Direction == 3)
+		{
+			TmpRect.m_Y = (*MainOverlappedRect).m_Y - TmpRect.m_H;
+			if(TmpRect.m_Y < 0)
+				continue;
+		}
+		TmpRect = FindPositionXY(vVisibleButtonRects, TmpRect, vCheckedRects);
+		if(TmpRect.m_X != -1 && MinDistance > TmpRect / MyRect)
+		{
+			MinDistance = TmpRect / MyRect;
+			MinRect = TmpRect;
+		}
+	}
+	return MinRect;
+}
+
+void CTouchControls::RenderButtonEditor()
+{
+	const std::vector<IInput::CTouchFingerState> vTouchFingerStates = m_pClient->Input()->TouchFingerStates();
+	const vec2 ScreenSize = Gameclient()->m_TouchControls.CalculateScreenSize();
+	static std::vector<bool> vVisibilities((int)EButtonVisibility::NUM_VISIBILITIES, false);
+	static bool IsSelected = false;
+	static CTouchButton *SelectedButton = nullptr;
+	static std::optional<IInput::CTouchFinger> ActiveFingerState;
+	static std::optional<IInput::CTouchFinger> ZoomFingerState;
+	static vec2 ZoomStartPos = {0.0f, 0.0f};
+	static bool FirstOpen = true;
+	static bool LongPress = false;
+	static vec2 AccumulatedDelta = {0.0f, 0.0f};
+	static std::optional<float> LastPos;
+	static std::optional<IInput::CTouchFingerState*> pLongPressFingerState;
+	static bool IfCallSettings = false;
+	static CUnitRect ShownRect;
+    char EditX[16], EditY[16], EditW[16], EditH[16];
+    static std::string SavedX[16] = "0", SavedY[16] = "0", SavedW[16] = "50000", SavedH[16] = "50000";
+	static CLineInput InputX(EditX, sizeof(EditX), 6),
+	                  InputY(EditY, sizeof(EditY), 6),
+	                  InputW(EditW, sizeof(EditW), 6),
+	                  InputH(EditH, sizeof(EditH), 6);
+	std::set<CUnitRect> vVisibleButtonRects;
+	if(FirstOpen)
+	{
+		vVisibilities[(int)EButtonVisibility::INGAME] = true;
+		vVisibilities[(int)EButtonVisibility::ZOOM_ALLOWED] = true;
+		vVisibilities[(int)EButtonVisibility::DUMMY_ALLOWED] = true;
+		FirstOpen = false;
+	}
+	if(!pLongPressFingerState.has_value() && vTouchFingerStates.size() != 0)
+		pLongPressFingerState = vTouchFingerStates;
+		
+	//Find long press button. LongPress == true means the first fingerstate long pressed.
+	if(pLongPressFingerState.has_value())
+	{
+    	AccumulatedDelta += pLongPressFingerState->m_Delta;
+    	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.06)
+    	{
+    		AccumulatedDelta = {0.0f, 0.0f};
+    		pLongPressFingerState = std::nullopt;
+    	}
+    	else
+    	{
+    		const auto Now = time_get_nanoseconds();
+    		if(Now - pLongPressFingerState->m_PressTime > 400ms)
+    			LongPress = true;
+    	}
+	}
+	
+	//Update active and zoom fingerstate.
+	if(vTouchFingerStates.size() > 0)
+		ActiveFingerState = vTouchFingerStates[0];
+	else
+		ActiveFingerState = std::nullopt;
+	if(vTouchFingerStates.size() > 1)
+	{
+		if(!ZoomFingerState.has_value())
+			ZoomStartPos = ActiveFingerState.m_Position - vTouchFingerStates[1].m_Position;
+		ZoomFingerState = vTouchFingerStates[1];
+	}
+	else
+	{
+		ZoomFingerState = std::nullopt;
+		ZoomStartPos = {0.0f, 0.0f};
+	}
+	
+	//vVisibilities should be set manually(by user), a default value is given. Only used in the editor to decide if a button is visible.
+	for(auto &TouchButton : m_vTouchButtons)
+	{
+		bool IsVisible = std::all_of(TouchButton.m_vVisibilities.begin(), TouchButton.m_vVisibilities.end(), [&](const auto &Visibility){
+			return Visibility.m_Parity == vVisibilities[(int)Visibility.m_Type];
+		});
+		if(IsVisible)
+		{
+			//Only Long Pressed finger "in visible button" is used for selecting a button.
+			//If Selected Button LongPressed, open setting menus.
+			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside(pLongPressFingerState->m_Position * ScreenSize))
+			{
+				if(!IsSelected || SelectedButton != &TouchButton)
+				{
+					IsSelected = true;
+					SelectedButton = &TouchButton;
+					ActiveFinger = *pLongPressFingerState;
+				}
+				else if(SelectedButton == &TouchButton)
+				{
+					IfCallSettings = true;
+				}
+				//LongPress used.
+				pLongPressFingerState = std::nullopt;
+				LongPress = false;
+				//Don't render the selected button. It's place should change and there should be extra UI.
+				continue;
+			}
+			//Render visible but not selected buttons.
+			TouchButton.UpdateBackgroundCorners();
+			TouchButton.Render(); 
+			vVisibleButtonRects.insert(TouchButton.m_UnitRect);
+		}
+		else if(SelectedButton == &TouchButton)
+		{
+			IsSelected = false;
+			SelectedButton = nullptr;
+		}
+	}
+	//If LongPress == true, LongPress finger has to be outside of visible buttons
+	if(LongPress)
+	{
+		IsSelected = false;
+		SelectedButton->render();
+		SelectedButton = nullptr;
+		LongPress = false;
+		pLongPressFingerState = std::nullopt;
+	}
+	
+	if(IsSelected)
+	{
+		if(ActiveFingerState.has_value() && ZoomFingerState == std::nullopt)
+		{
+			vec2 UnitXYDelta = ActiveFingerState.m_Delta * 1000000;
+			SelectedButton->m_UnitRect.m_X += UnitXYDelta.x;
+			SelectedButton->m_UnitRect.m_Y += UnitXYDelta.y;
+			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
+		}
+		if(ActiveFingerState.has_value() && ZoomFingerState.has_value())
+		{
+			vec2 UnitWHDelta = (std::abs(ActiveFingerState - ZoomFingerState) - std::abs(ZoomStartPos)) * 1000000;
+			SelectedButton->m_UnitRect.m_W += UnitWHDelta.x;
+			SelectedButton->m_UnitRect.m_H += UnitWHDelta.y;
+			SelectedButton->m_UnitRect.m_W = clamp(SelectedButton->m_UnitRect.m_W, 50000, 500000);
+			SelectedButton->m_UnitRect.m_H = clamp(SelectedButton->m_UnitRect.m_H, 50000, 500000);
+			if(SelectedButton->m_UnitRect.m_W + SelectedButton->m_UnitRect.m_X > 1000000)
+			    SelectedButton->m_UnitRect.m_W -= 1000000 - SelectedButton->m_UnitRect.m_X;
+			if(SelectedButton->m_UnitRect.m_H + SelectedButton->m_UnitRect.m_Y > 1000000)
+			    SelectedButton->m_UnitRect.m_H -= 1000000 - SelectedButton->m_UnitRect.m_Y;
+			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
+			for(const auto &Rect : vVisibleButtonRects)
+			{
+			    if(!(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W <= Rect.m_X || Rect.m_X + Rect.m_W <= SelectedButton->m_UnitRect.m_X || SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H <= Rect.m_Y || Rect.m_Y + Rect.m_H <= SelectedButton->m_UnitRect.m_Y));
+			    if(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W > Rect.m_X)
+			        SelectedButton->m_UnitRect.m_W = Rect.m_X - SelectedButton->m_UnitRect.m_X;
+			    else if(SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H > Rect.m_Y)
+			        SelectedButton->m_UnitRect.m_H = Rect.m_Y - SelectedButton->m_UnitRect.m_Y;
+			}
+			ShownRect = SelectedButton->m_UnitRect;
+		}
+		//Finished moving, no finger on screen.
+		if(vTouchFingerStates.size() == 0)
+		{
+			AccumulatedDelta = {0.0f, 0.0f};
+			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
+			SelectedButton->m_UnitRect = ShownRect;
+		}
+	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(Gameclient()->m_TouchControls));
+	    TmpButton.m_UnitRect = ShownRect;
+	    TmpButton.UpdateScreenFromUnitRect();
+	    TmpButton.m_Shape = SelectedButton->m_Shape;
+	    TmpButton.Render();
+	}
+	
+	if(IfCallSettings)
+	{
+	    CUIRect Screen = *m_pTouchControls->Ui()->Screen();
+	    CUIRect Left, Right;
+	    Screen.Margin(50.0f, &Screen);
+	    Screen.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f), IGraphics::CORNER_ALL, 5.0f);
+	    Screen.VSplitLeft(Screen.w / 2, &Left, &Right);
+	    Left.Margin(30.0f, &Left);
+	    Right.Margin(30.0, &Right);
+	    CUIRect EditBox;
+	    Left.HSplitTop(15.0, &EditBox, &Left);
+	    if(UI()->DoClearableEditBox(&InputX, &EditBox, 10.0f))
+	    {
+	        std::string TpString = "";
+	        for(int Check = 0; EditX[Check] != '\0' && Check < 6; Check ++)
+	            if('0' <= EditX[Check] && EditX[Check] <= '9')
+	                TpString += EditX[Check];
+	            else
+	            {
+	                str_copy(EditX, SavedX.c_str());
+	                TpString = SavedX;
+	                break;
+	            }
+	        if(std::stoi(TpSrting) + std::stoi(SavedW) > 1000000)
+	            SavedX = std::to_string(1000000 - std::stoi(SavedW));
+	        else
+	            SavedX = TpString;
+	        str_copy(EditX, SavedX.c_str());
+	    }
+	    Right.HSplitTop(15.0, &EditBox, &Right);
+	    if(UI()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
+	    {
+	        std::string TpString = "";
+	        for(int Check = 0; EditY[Check] != '\0' && Check < 6; Check ++)
+	            if('0' <= EditY[Check] && EditY[Check] <= '9')
+	                TpString += EditY[Check];
+	            else
+	            {
+	                str_copy(EditY, SavedY.c_str());
+	                TpString = SavedY;
+	                break;
+	            }
+	        if(std::stoi(TpSrting) + std::stoi(SavedH) > 1000000)
+	            SavedY = std::to_string(1000000 - std::stoi(SavedH));
+	        else
+	            SavedY = TpString;
+	        str_copy(EditY, SavedY.c_str());
+	    }
+	    Left.HSplitTop(15.0, &EditBox, &Left);
+	    if(UI()->DoClearableEditBox(&InputW, &EditBox, 10.0f))
+	    {
+	        std::string TpString = "";
+	        for(int Check = 0; EditW[Check] != '\0' && Check < 6; Check ++)
+	            if('0' <= EditW[Check] && EditW[Check] <= '9')
+	                TpString += EditW[Check];
+	            else
+	            {
+	                str_copy(EditW, SavedW.c_str());
+	                TpString = SavedW;
+	                break;
+	            }
+	        if(std::stoi(TpSrting) + std::stoi(SavedX) > 1000000)
+	            SavedW = std::to_string(1000000 - std::stoi(SavedX));
+	        else if(std::stoi(SavedW) < 50000)
+	            SavedW = std::to_string(50000);
+	        else
+	            SavedW = TpString;
+	        str_copy(EditW, SavedW.c_str());
+	    }
+	    Right.HSplitTop(15.0, &EditBox, &Right);
+	    if(UI()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
+	    {
+	        std::string TpString = "";
+	        for(int Check = 0; EditH[Check] != '\0' && Check < 6; Check ++)
+	            if('0' <= EditH[Check] && EditH[Check] <= '9')
+	                TpString += EditH[Check];
+	            else
+	            {
+	                str_copy(EditH, SavedH.c_str());
+	                TpString = SavedH;
+	                break;
+	            }
+	        if(std::stoi(TpSrting) + std::stoi(SavedH) > 1000000)
+	            SavedH = std::to_string(1000000 - std::stoi(SavedY));
+	        else if(std::stoi(SavedH) < 50000)
+	            SavedH = std::to_string(50000);
+	        else
+	            SavedH = TpString;
+	        str_copy(EditH, SavedH.c_str());
+	    }
+	}
 }

@@ -22,6 +22,7 @@ typedef struct _json_value json_value;
 class CTouchControls : public CComponent
 {
 public:
+	friend class CMenus;
 	enum class EDirectTouchIngameMode
 	{
 		DISABLED,
@@ -161,6 +162,23 @@ private:
 		int m_Y;
 		int m_W;
 		int m_H;
+		bool operator<(const CUnitRect &Other) const
+		{
+       		if (m_X + m_H / 2 != Other.m_X + Other.m_H / 2)
+      	    	return m_X < Other.m_X;
+     		return m_Y < Other.m_Y;
+  		}
+		//This means distance;
+		double operator/(const CUnitRect &Other)
+		{
+			double Dx = Other.m_X + Other.m_W / 2 - m_X - m_W / 2;
+			Dx /= 1000000;
+			Dx *= Dx;
+			double Dy = Other.m_Y + Other.m_H / 2 - m_Y - m_H / 2;
+			Dy /= 1000000;
+			Dy *= Dy;
+			return std::sqrt(Dx + Dy);
+		}
 	};
 
 	class CTouchButtonBehavior;
@@ -559,6 +577,9 @@ private:
 	std::unique_ptr<CBindTouchButtonBehavior> ParseBindBehavior(const json_value *pBehaviorObject);
 	std::unique_ptr<CBindToggleTouchButtonBehavior> ParseBindToggleBehavior(const json_value *pBehaviorObject);
 	void WriteConfiguration(CJsonWriter *pWriter);
+	
+	CTouchControls::CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {})
+	void CTouchControls::RenderButtonEditor();
 };
 
 #endif
