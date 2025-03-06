@@ -1799,7 +1799,7 @@ void CTouchControls::RenderButtonEditor()
 				{
 					IsSelected = true;
 					SelectedButton = &TouchButton;
-					ActiveFingerState = **pLongPressFingerState;
+					ActiveFingerState = *(pLongPressFingerState.value());
 				}
 				else if(SelectedButton == &TouchButton)
 				{
@@ -1826,7 +1826,8 @@ void CTouchControls::RenderButtonEditor()
 	if(LongPress)
 	{
 		IsSelected = false;
-		SelectedButton->Render();
+		if(SelectedButton != nullptr)
+		    SelectedButton->Render();
 		SelectedButton = nullptr;
 		LongPress = false;
 		pLongPressFingerState = std::nullopt;
@@ -1876,8 +1877,8 @@ void CTouchControls::RenderButtonEditor()
 		}
 	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
 	    TmpButton->m_UnitRect = ShownRect;
-	    TmpButton->UpdateScreenFromUnitRect();
 	    TmpButton->m_Shape = SelectedButton->m_Shape;
+	    TmpButton->UpdateScreenFromUnitRect();
 	    TmpButton->Render();
 	}
 	
