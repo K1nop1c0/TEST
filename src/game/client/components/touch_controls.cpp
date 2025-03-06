@@ -1630,7 +1630,7 @@ void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
 	pWriter->EndObject();
 }
 
-CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {})
+CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {})
 {
 	if(vCheckedRects.size() == 0)
 		vCheckedRects.resize(vVisibleButtonRects.size(), false);
@@ -1774,7 +1774,7 @@ void CTouchControls::RenderButtonEditor()
 	if(vTouchFingerStates.size() > 1)
 	{
 		if(!ZoomFingerState.has_value())
-			ZoomStartPos = ActiveFingerState.m_Position - vTouchFingerStates[1].m_Position;
+			ZoomStartPos = ActiveFingerState.value().m_Position - vTouchFingerStates[1].m_Position;
 		ZoomFingerState = vTouchFingerStates[1];
 	}
 	else
@@ -1799,7 +1799,7 @@ void CTouchControls::RenderButtonEditor()
 				{
 					IsSelected = true;
 					SelectedButton = &TouchButton;
-					ActiveFingerState = *pLongPressFingerState;
+					ActiveFingerState = **pLongPressFingerState;
 				}
 				else if(SelectedButton == &TouchButton)
 				{
@@ -1826,7 +1826,7 @@ void CTouchControls::RenderButtonEditor()
 	if(LongPress)
 	{
 		IsSelected = false;
-		SelectedButton->render();
+		SelectedButton->Render();
 		SelectedButton = nullptr;
 		LongPress = false;
 		pLongPressFingerState = std::nullopt;
@@ -1844,8 +1844,8 @@ void CTouchControls::RenderButtonEditor()
 		if(ActiveFingerState.has_value() && ZoomFingerState.has_value())
 		{
 			vec2 UnitWHDelta;
-			UnitWHDelta.x = (std::abs(ActiveFingerState.x - ZoomFingerState.x) - std::abs(ZoomStartPos.x)) * 1000000;
-			UnitWHDelta.y = (std::abs(ActiveFingerState.y - ZoomFingerState.y) - std::abs(ZoomStartPos.y)) * 1000000;
+			UnitWHDelta.x = (std::abs(ActiveFingerState.m_Position.x - ZoomFingerState.m_Position.x) - std::abs(ZoomStartPos.x)) * 1000000;
+			UnitWHDelta.y = (std::abs(ActiveFingerState.m_Position.y - ZoomFingerState.m_Position.y) - std::abs(ZoomStartPos.y)) * 1000000;
 			SelectedButton->m_UnitRect.m_W += UnitWHDelta.x;
 			SelectedButton->m_UnitRect.m_H += UnitWHDelta.y;
 			SelectedButton->m_UnitRect.m_W = clamp(SelectedButton->m_UnitRect.m_W, 50000, 500000);
@@ -1857,11 +1857,13 @@ void CTouchControls::RenderButtonEditor()
 			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
 			for(const auto &Rect : vVisibleButtonRects)
 			{
-			    if(!(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W <= Rect.m_X || Rect.m_X + Rect.m_W <= SelectedButton->m_UnitRect.m_X || SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H <= Rect.m_Y || Rect.m_Y + Rect.m_H <= SelectedButton->m_UnitRect.m_Y));
-			    if(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W > Rect.m_X)
-			        SelectedButton->m_UnitRect.m_W = Rect.m_X - SelectedButton->m_UnitRect.m_X;
-			    else if(SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H > Rect.m_Y)
-			        SelectedButton->m_UnitRect.m_H = Rect.m_Y - SelectedButton->m_UnitRect.m_Y;
+			    if(!(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W <= Rect.m_X || Rect.m_X + Rect.m_W <= SelectedButton->m_UnitRect.m_X || SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H <= Rect.m_Y || Rect.m_Y + Rect.m_H <= SelectedButton->m_UnitRect.m_Y))
+			    {
+			        if(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W > Rect.m_X)
+			            SelectedButton->m_UnitRect.m_W = Rect.m_X - SelectedButton->m_UnitRect.m_X;
+			        else if(SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H > Rect.m_Y)
+			            SelectedButton->m_UnitRect.m_H = Rect.m_Y - SelectedButton->m_UnitRect.m_Y;
+			    }
 			}
 			ShownRect = SelectedButton->m_UnitRect;
 		}
@@ -1872,7 +1874,7 @@ void CTouchControls::RenderButtonEditor()
 			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
 			SelectedButton->m_UnitRect = ShownRect;
 		}
-	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(Gameclient()->m_TouchControls));
+	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
 	    TmpButton->m_UnitRect = ShownRect;
 	    TmpButton->UpdateScreenFromUnitRect();
 	    TmpButton->m_Shape = SelectedButton->m_Shape;
@@ -1881,7 +1883,7 @@ void CTouchControls::RenderButtonEditor()
 	
 	if(IfCallSettings)
 	{
-	    CUIRect Screen = *m_pTouchControls->Ui()->Screen();
+	    CUIRect Screen = GameClient()->m_TouchControls.Ui()->Screen();
 	    CUIRect Left, Right;
 	    Screen.Margin(50.0f, &Screen);
 	    Screen.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f), IGraphics::CORNER_ALL, 5.0f);
@@ -1890,7 +1892,7 @@ void CTouchControls::RenderButtonEditor()
 	    Right.Margin(30.0, &Right);
 	    CUIRect EditBox;
 	    Left.HSplitTop(15.0, &EditBox, &Left);
-	    if(UI()->DoClearableEditBox(&InputX, &EditBox, 10.0f))
+	    if(Ui()->DoClearableEditBox(&InputX, &EditBox, 10.0f))
 	    {
 	        std::string TpString = "";
 	        for(int Check = 0; EditX[Check] != '\0' && Check < 6; Check ++)
@@ -1909,7 +1911,7 @@ void CTouchControls::RenderButtonEditor()
 	        str_copy(EditX, SavedX.c_str());
 	    }
 	    Right.HSplitTop(15.0, &EditBox, &Right);
-	    if(UI()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
+	    if(Ui()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
 	    {
 	        std::string TpString = "";
 	        for(int Check = 0; EditY[Check] != '\0' && Check < 6; Check ++)
@@ -1928,7 +1930,7 @@ void CTouchControls::RenderButtonEditor()
 	        str_copy(EditY, SavedY.c_str());
 	    }
 	    Left.HSplitTop(15.0, &EditBox, &Left);
-	    if(UI()->DoClearableEditBox(&InputW, &EditBox, 10.0f))
+	    if(Ui()->DoClearableEditBox(&InputW, &EditBox, 10.0f))
 	    {
 	        std::string TpString = "";
 	        for(int Check = 0; EditW[Check] != '\0' && Check < 6; Check ++)
@@ -1949,7 +1951,7 @@ void CTouchControls::RenderButtonEditor()
 	        str_copy(EditW, SavedW.c_str());
 	    }
 	    Right.HSplitTop(15.0, &EditBox, &Right);
-	    if(UI()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
+	    if(Ui()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
 	    {
 	        std::string TpString = "";
 	        for(int Check = 0; EditH[Check] != '\0' && Check < 6; Check ++)
