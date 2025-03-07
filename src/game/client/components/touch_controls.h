@@ -69,6 +69,8 @@ public:
 	bool HasEditingChanges() const { return m_EditingChanges; }
 	void SetEditingChanges(bool EditingChanges) { m_EditingChanges = EditingChanges; }
 
+	bool IfSelectedButton = false;
+
 private:
 	static constexpr const char *const DIRECT_TOUCH_INGAME_MODE_NAMES[(int)EDirectTouchIngameMode::NUM_STATES] = {"disabled", "action", "aim", "fire", "hook"};
 	static constexpr const char *const DIRECT_TOUCH_SPECTATE_MODE_NAMES[(int)EDirectTouchSpectateMode::NUM_STATES] = {"disabled", "aim"};
