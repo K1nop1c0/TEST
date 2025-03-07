@@ -5,7 +5,6 @@
 
 #include <engine/client.h>
 #include <engine/external/json-parser/json.h>
-#include <engine/shared/config.h>
 #include <engine/shared/jsonwriter.h>
 #include <engine/shared/localization.h>
 
@@ -39,15 +38,309 @@ static constexpr std::chrono::nanoseconds BIND_REPEAT_RATE = std::chrono::nanose
 
 static constexpr const char *const CONFIGURATION_FILENAME = "touch_controls.json";
 static constexpr int BUTTON_SIZE_SCALE = 1000000;
-static constexpr int BUTTON_SIZE_MINIMUM = 50000;
-static constexpr int BUTTON_SIZE_MAXIMUM = 500000;
+static constexpr int BUTTON_SIZE_MINIMUM = 0;
+static constexpr int BUTTON_SIZE_MAXIMUM = 1000000;
+static constexpr float EPS = 1e-4;
+
+void SuperMap::Init()
+{
+	Map["cl_button_color_type"] = &g_Config.m_ClButtonColorType;
+	Map["cl_button_rainbow_speed"] = &g_Config.m_ClButtonRainbowSpeed;
+	Map["cl_button_rainbow_sat"] = &g_Config.m_ClButtonRainbowSat;
+	Map["cl_button_rainbow_lig"] = &g_Config.m_ClButtonRainbowLig;
+	Map["cl_button_alpha"] = &g_Config.m_ClButtonAlpha;
+	Map["cl_button_alpha_active"] = &g_Config.m_ClButtonAlphaActive;
+	Map["cl_label_color_type"] = &g_Config.m_ClLabelColorType;
+	Map["cl_label_rainbow_speed"] = &g_Config.m_ClLabelRainbowSpeed;
+	Map["cl_label_rainbow_sat"] = &g_Config.m_ClLabelRainbowSat;
+	Map["cl_label_rainbow_lig"] = &g_Config.m_ClLabelRainbowLig;
+	Map["cl_label_alpha"] = &g_Config.m_ClLabelAlpha;
+	Map["cl_label_alpha_active"] = &g_Config.m_ClLabelAlphaActive;
+	Map["cl_bind_slide_extra_render_time"] = &g_Config.m_ClBindSlideExtraRenderTime;
+	Map["cl_bind_slide_distance"] = &g_Config.m_ClBindSlideDistance;
+	Map["cl_predict"] = &g_Config.m_ClPredict;
+	Map["cl_predict_dummy"] = &g_Config.m_ClPredictDummy;
+	Map["cl_antiping_limit"] = &g_Config.m_ClAntiPingLimit;
+	Map["cl_antiping"] = &g_Config.m_ClAntiPing;
+	Map["cl_antiping_players"] = &g_Config.m_ClAntiPingPlayers;
+	Map["cl_antiping_grenade"] = &g_Config.m_ClAntiPingGrenade;
+	Map["cl_antiping_weapons"] = &g_Config.m_ClAntiPingWeapons;
+	Map["cl_antiping_smooth"] = &g_Config.m_ClAntiPingSmooth;
+	Map["cl_antiping_gunfire"] = &g_Config.m_ClAntiPingGunfire;
+	Map["cl_prediction_margin"] = &g_Config.m_ClPredictionMargin;
+	Map["cl_sub_tick_aiming"] = &g_Config.m_ClSubTickAiming;
+	Map["cl_touch_controls"] = &g_Config.m_ClTouchControls;
+	Map["cl_touch_controls"] = &g_Config.m_ClTouchControls;
+	Map["cl_nameplates"] = &g_Config.m_ClNamePlates;
+	Map["cl_nameplates_always"] = &g_Config.m_ClNamePlatesAlways;
+	Map["cl_nameplates_teamcolors"] = &g_Config.m_ClNamePlatesTeamcolors;
+	Map["cl_nameplates_size"] = &g_Config.m_ClNamePlatesSize;
+	Map["cl_nameplates_clan"] = &g_Config.m_ClNamePlatesClan;
+	Map["cl_nameplates_clan_size"] = &g_Config.m_ClNamePlatesClanSize;
+	Map["cl_nameplates_ids"] = &g_Config.m_ClNamePlatesIds;
+	Map["cl_nameplates_own"] = &g_Config.m_ClNamePlatesOwn;
+	Map["cl_nameplates_friendmark"] = &g_Config.m_ClNamePlatesFriendMark;
+	Map["cl_nameplates_strong"] = &g_Config.m_ClNamePlatesStrong;
+	Map["cl_nameplates_strong_size"] = &g_Config.m_ClNamePlatesStrongSize;
+	Map["cl_afk_emote"] = &g_Config.m_ClAfkEmote;
+	Map["cl_text_entities"] = &g_Config.m_ClTextEntities;
+	Map["cl_text_entities_size"] = &g_Config.m_ClTextEntitiesSize;
+	Map["cl_streamer_mode"] = &g_Config.m_ClStreamerMode;
+	Map["cl_enable_ping_color"] = &g_Config.m_ClEnablePingColor;
+	Map["cl_autoswitch_weapons"] = &g_Config.m_ClAutoswitchWeapons;
+	Map["cl_autoswitch_weapons_out_of_ammo"] = &g_Config.m_ClAutoswitchWeaponsOutOfAmmo;
+	Map["cl_showhud"] = &g_Config.m_ClShowhud;
+	Map["cl_showhud_healthammo"] = &g_Config.m_ClShowhudHealthAmmo;
+	Map["cl_showhud_score"] = &g_Config.m_ClShowhudScore;
+	Map["cl_showhud_timer"] = &g_Config.m_ClShowhudTimer;
+	Map["cl_showhud_time_cp_diff"] = &g_Config.m_ClShowhudTimeCpDiff;
+	Map["cl_showhud_dummy_actions"] = &g_Config.m_ClShowhudDummyActions;
+	Map["cl_showhud_player_position"] = &g_Config.m_ClShowhudPlayerPosition;
+	Map["cl_showhud_player_speed"] = &g_Config.m_ClShowhudPlayerSpeed;
+	Map["cl_showhud_player_angle"] = &g_Config.m_ClShowhudPlayerAngle;
+	Map["cl_showhud_ddrace"] = &g_Config.m_ClShowhudDDRace;
+	Map["cl_showhud_jumps_indicator"] = &g_Config.m_ClShowhudJumpsIndicator;
+	Map["cl_show_freeze_bars"] = &g_Config.m_ClShowFreezeBars;
+	Map["cl_freezebars_alpha_inside_freeze"] = &g_Config.m_ClFreezeBarsAlphaInsideFreeze;
+	Map["cl_showrecord"] = &g_Config.m_ClShowRecord;
+	Map["cl_shownotifications"] = &g_Config.m_ClShowNotifications;
+	Map["cl_showemotes"] = &g_Config.m_ClShowEmotes;
+	Map["cl_showchat"] = &g_Config.m_ClShowChat;
+	Map["cl_show_chat_friends"] = &g_Config.m_ClShowChatFriends;
+	Map["cl_show_chat_team_members_only"] = &g_Config.m_ClShowChatTeamMembersOnly;
+	Map["cl_show_chat_system"] = &g_Config.m_ClShowChatSystem;
+	Map["cl_showkillmessages"] = &g_Config.m_ClShowKillMessages;
+	Map["cl_show_finish_messages"] = &g_Config.m_ClShowFinishMessages;
+	Map["cl_show_votes_after_voting"] = &g_Config.m_ClShowVotesAfterVoting;
+	Map["cl_show_local_time_always"] = &g_Config.m_ClShowLocalTimeAlways;
+	Map["cl_showfps"] = &g_Config.m_ClShowfps;
+	Map["cl_showpred"] = &g_Config.m_ClShowpred;
+	Map["cl_eye_wheel"] = &g_Config.m_ClEyeWheel;
+	Map["cl_eye_duration"] = &g_Config.m_ClEyeDuration;
+	Map["cl_freeze_stars"] = &g_Config.m_ClFreezeStars;
+	Map["cl_spec_cursor"] = &g_Config.m_ClSpecCursor;
+	Map["cl_spec_auto_sync"] = &g_Config.m_ClSpecAutoSync;
+	Map["cl_airjumpindicator"] = &g_Config.m_ClAirjumpindicator;
+	Map["cl_threadsoundloading"] = &g_Config.m_ClThreadsoundloading;
+	Map["cl_warning_teambalance"] = &g_Config.m_ClWarningTeambalance;
+	Map["cl_mouse_deadzone"] = &g_Config.m_ClMouseDeadzone;
+	Map["cl_mouse_followfactor"] = &g_Config.m_ClMouseFollowfactor;
+	Map["cl_mouse_max_distance"] = &g_Config.m_ClMouseMaxDistance;
+	Map["cl_mouse_min_distance"] = &g_Config.m_ClMouseMinDistance;
+	Map["cl_dyncam"] = &g_Config.m_ClDyncam;
+	Map["cl_dyncam_max_distance"] = &g_Config.m_ClDyncamMaxDistance;
+	Map["cl_dyncam_min_distance"] = &g_Config.m_ClDyncamMinDistance;
+	Map["cl_dyncam_mousesens"] = &g_Config.m_ClDyncamMousesens;
+	Map["cl_dyncam_deadzone"] = &g_Config.m_ClDyncamDeadzone;
+	Map["cl_dyncam_follow_factor"] = &g_Config.m_ClDyncamFollowFactor;
+	Map["cl_dyncam_smoothness"] = &g_Config.m_ClDyncamSmoothness;
+	Map["cl_dyncam_stabilizing"] = &g_Config.m_ClDyncamStabilizing;
+	Map["cl_multiview_sensitivity"] = &g_Config.m_ClMultiViewSensitivity;
+	Map["cl_multiview_zoom_smoothness"] = &g_Config.m_ClMultiViewZoomSmoothness;
+	Map["cl_spectator_mouseclicks"] = &g_Config.m_ClSpectatorMouseclicks;
+	Map["cl_smooth_spectating_time"] = &g_Config.m_ClSmoothSpectatingTime;
+	Map["ed_autosave_interval"] = &g_Config.m_EdAutosaveInterval;
+	Map["ed_autosave_max"] = &g_Config.m_EdAutosaveMax;
+	Map["ed_smooth_zoom_time"] = &g_Config.m_EdSmoothZoomTime;
+	Map["ed_limit_max_zoom_level"] = &g_Config.m_EdLimitMaxZoomLevel;
+	Map["ed_zoom_target"] = &g_Config.m_EdZoomTarget;
+	Map["ed_showkeys"] = &g_Config.m_EdShowkeys;
+	Map["ed_align_quads"] = &g_Config.m_EdAlignQuads;
+	Map["ed_show_quads_rect"] = &g_Config.m_EdShowQuadsRect;
+	Map["ed_auto_map_reload"] = &g_Config.m_EdAutoMapReload;
+	Map["ed_layer_selector"] = &g_Config.m_EdLayerSelector;
+	Map["cl_show_welcome"] = &g_Config.m_ClShowWelcome;
+	Map["cl_motd_time"] = &g_Config.m_ClMotdTime;
+	Map["cl_map_download_connect_timeout_ms"] = &g_Config.m_ClMapDownloadConnectTimeoutMs;
+	Map["cl_map_download_low_speed_limit"] = &g_Config.m_ClMapDownloadLowSpeedLimit;
+	Map["cl_map_download_low_speed_time"] = &g_Config.m_ClMapDownloadLowSpeedTime;
+	Map["cl_vanilla_skins_only"] = &g_Config.m_ClVanillaSkinsOnly;
+	Map["cl_download_skins"] = &g_Config.m_ClDownloadSkins;
+	Map["cl_download_community_skins"] = &g_Config.m_ClDownloadCommunitySkins;
+	Map["cl_auto_statboard_screenshot"] = &g_Config.m_ClAutoStatboardScreenshot;
+	Map["cl_auto_statboard_screenshot_max"] = &g_Config.m_ClAutoStatboardScreenshotMax;
+	Map["cl_default_zoom"] = &g_Config.m_ClDefaultZoom;
+	Map["cl_smooth_zoom_time"] = &g_Config.m_ClSmoothZoomTime;
+	Map["cl_limit_max_zoom_level"] = &g_Config.m_ClLimitMaxZoomLevel;
+	Map["player_use_custom_color"] = &g_Config.m_ClPlayerUseCustomColor;
+	Map["player_default_eyes"] = &g_Config.m_ClPlayerDefaultEyes;
+	Map["cl_fat_skins"] = &g_Config.m_ClFatSkins;
+	Map["player7_use_custom_color_body"] = &g_Config.m_ClPlayer7UseCustomColorBody;
+	Map["player7_use_custom_color_marking"] = &g_Config.m_ClPlayer7UseCustomColorMarking;
+	Map["player7_use_custom_color_decoration"] = &g_Config.m_ClPlayer7UseCustomColorDecoration;
+	Map["player7_use_custom_color_hands"] = &g_Config.m_ClPlayer7UseCustomColorHands;
+	Map["player7_use_custom_color_feet"] = &g_Config.m_ClPlayer7UseCustomColorFeet;
+	Map["player7_use_custom_color_eyes"] = &g_Config.m_ClPlayer7UseCustomColorEyes;
+	Map["dummy7_use_custom_color_body"] = &g_Config.m_ClDummy7UseCustomColorBody;
+	Map["dummy7_use_custom_color_marking"] = &g_Config.m_ClDummy7UseCustomColorMarking;
+	Map["dummy7_use_custom_color_decoration"] = &g_Config.m_ClDummy7UseCustomColorDecoration;
+	Map["dummy7_use_custom_color_hands"] = &g_Config.m_ClDummy7UseCustomColorHands;
+	Map["dummy7_use_custom_color_feet"] = &g_Config.m_ClDummy7UseCustomColorFeet;
+	Map["dummy7_use_custom_color_eyes"] = &g_Config.m_ClDummy7UseCustomColorEyes;
+	Map["dummy_country"] = &g_Config.m_ClDummyCountry;
+	Map["dummy_use_custom_color"] = &g_Config.m_ClDummyUseCustomColor;
+	Map["dummy_default_eyes"] = &g_Config.m_ClDummyDefaultEyes;
+	Map["cl_dummy"] = &g_Config.m_ClDummy;
+	Map["cl_dummy_hammer"] = &g_Config.m_ClDummyHammer;
+	Map["cl_dummy_resetonswitch"] = &g_Config.m_ClDummyResetOnSwitch;
+	Map["cl_dummy_restore_weapon"] = &g_Config.m_ClDummyRestoreWeapon;
+	Map["cl_dummy_copy_moves"] = &g_Config.m_ClDummyCopyMoves;
+	Map["cl_dummy_control"] = &g_Config.m_ClDummyControl;
+	Map["cl_dummy_jump"] = &g_Config.m_ClDummyJump;
+	Map["cl_dummy_fire"] = &g_Config.m_ClDummyFire;
+	Map["cl_dummy_hook"] = &g_Config.m_ClDummyHook;
+	Map["cl_show_start_menu_images"] = &g_Config.m_ClShowStartMenuImages;
+	Map["cl_skip_start_menu"] = &g_Config.m_ClSkipStartMenu;
+	Map["cl_video_pausewithdemo"] = &g_Config.m_ClVideoPauseWithDemo;
+	Map["cl_video_showhud"] = &g_Config.m_ClVideoShowhud;
+	Map["cl_video_showchat"] = &g_Config.m_ClVideoShowChat;
+	Map["cl_video_sound_enable"] = &g_Config.m_ClVideoSndEnable;
+	Map["cl_video_show_hook_coll_other"] = &g_Config.m_ClVideoShowHookCollOther;
+	Map["cl_video_show_direction"] = &g_Config.m_ClVideoShowDirection;
+	Map["cl_video_crf"] = &g_Config.m_ClVideoX264Crf;
+	Map["cl_video_preset"] = &g_Config.m_ClVideoX264Preset;
+	Map["dbg_tuning"] = &g_Config.m_DbgTuning;
+	Map["player_country"] = &g_Config.m_PlayerCountry;
+	Map["events"] = &g_Config.m_Events;
+	Map["logappend"] = &g_Config.m_Logappend;
+	Map["loglevel"] = &g_Config.m_Loglevel;
+	Map["stdout_output_level"] = &g_Config.m_StdoutOutputLevel;
+	Map["console_output_level"] = &g_Config.m_ConsoleOutputLevel;
+	Map["console_enable_colors"] = &g_Config.m_ConsoleEnableColors;
+	Map["cl_save_settings"] = &g_Config.m_ClSaveSettings;
+	Map["cl_refresh_rate"] = &g_Config.m_ClRefreshRate;
+	Map["cl_refresh_rate_inactive"] = &g_Config.m_ClRefreshRateInactive;
+	Map["cl_editor"] = &g_Config.m_ClEditor;
+	Map["cl_editor_dilate"] = &g_Config.m_ClEditorDilate;
+	Map["cl_editor_max_history"] = &g_Config.m_ClEditorMaxHistory;
+	Map["cl_auto_demo_record"] = &g_Config.m_ClAutoDemoRecord;
+	Map["cl_auto_demo_on_connect"] = &g_Config.m_ClAutoDemoOnConnect;
+	Map["cl_auto_demo_max"] = &g_Config.m_ClAutoDemoMax;
+	Map["cl_auto_screenshot"] = &g_Config.m_ClAutoScreenshot;
+	Map["cl_auto_screenshot_max"] = &g_Config.m_ClAutoScreenshotMax;
+	Map["cl_auto_csv"] = &g_Config.m_ClAutoCSV;
+	Map["cl_auto_csv_max"] = &g_Config.m_ClAutoCSVMax;
+	Map["cl_show_broadcasts"] = &g_Config.m_ClShowBroadcasts;
+	Map["cl_print_broadcasts"] = &g_Config.m_ClPrintBroadcasts;
+	Map["cl_print_motd"] = &g_Config.m_ClPrintMotd;
+	Map["cl_friends_ignore_clan"] = &g_Config.m_ClFriendsIgnoreClan;
+	Map["inp_mousesens"] = &g_Config.m_InpMousesens;
+	Map["inp_translated_keys"] = &g_Config.m_InpTranslatedKeys;
+	Map["inp_ignored_modifiers"] = &g_Config.m_InpIgnoredModifiers;
+	Map["cl_race_binds_set"] = &g_Config.m_ClDDRaceBindsSet;
+	Map["cl_reconnect_timeout"] = &g_Config.m_ClReconnectTimeout;
+	Map["cl_reconnect_full"] = &g_Config.m_ClReconnectFull;
+	Map["cl_message_friend"] = &g_Config.m_ClMessageFriend;
+	Map["cl_show_ids"] = &g_Config.m_ClShowIds;
+	Map["cl_scoreboard_on_death"] = &g_Config.m_ClScoreboardOnDeath;
+	Map["cl_auto_race_record"] = &g_Config.m_ClAutoRaceRecord;
+	Map["cl_replays"] = &g_Config.m_ClReplays;
+	Map["cl_replay_length"] = &g_Config.m_ClReplayLength;
+	Map["cl_race_record_server_control"] = &g_Config.m_ClRaceRecordServerControl;
+	Map["cl_demo_name"] = &g_Config.m_ClDemoName;
+	Map["cl_race_ghost"] = &g_Config.m_ClRaceGhost;
+	Map["cl_race_ghost_server_control"] = &g_Config.m_ClRaceGhostServerControl;
+	Map["cl_race_show_ghost"] = &g_Config.m_ClRaceShowGhost;
+	Map["cl_race_save_ghost"] = &g_Config.m_ClRaceSaveGhost;
+	Map["cl_race_ghost_strict_map"] = &g_Config.m_ClRaceGhostStrictMap;
+	Map["cl_race_ghost_save_best"] = &g_Config.m_ClRaceGhostSaveBest;
+	Map["cl_race_ghost_alpha"] = &g_Config.m_ClRaceGhostAlpha;
+	Map["cl_show_others"] = &g_Config.m_ClShowOthers;
+	Map["cl_show_others_alpha"] = &g_Config.m_ClShowOthersAlpha;
+	Map["cl_overlay_entities"] = &g_Config.m_ClOverlayEntities;
+	Map["cl_showquads"] = &g_Config.m_ClShowQuads;
+	Map["cl_rotation_radius"] = &g_Config.m_ClRotationRadius;
+	Map["cl_rotation_speed"] = &g_Config.m_ClRotationSpeed;
+	Map["cl_camera_speed"] = &g_Config.m_ClCameraSpeed;
+	Map["cl_background_show_tiles_layers"] = &g_Config.m_ClBackgroundShowTilesLayers;
+	Map["cl_unpredicted_shadow"] = &g_Config.m_ClUnpredictedShadow;
+	Map["cl_predict_freeze"] = &g_Config.m_ClPredictFreeze;
+	Map["cl_show_ninja"] = &g_Config.m_ClShowNinja;
+	Map["cl_show_hook_coll_other"] = &g_Config.m_ClShowHookCollOther;
+	Map["cl_show_hook_coll_own"] = &g_Config.m_ClShowHookCollOwn;
+	Map["cl_hook_coll_size"] = &g_Config.m_ClHookCollSize;
+	Map["cl_hook_coll_size_other"] = &g_Config.m_ClHookCollSizeOther;
+	Map["cl_hook_coll_alpha"] = &g_Config.m_ClHookCollAlpha;
+	Map["cl_chat_teamcolors"] = &g_Config.m_ClChatTeamColors;
+	Map["cl_chat_reset"] = &g_Config.m_ClChatReset;
+	Map["cl_chat_old"] = &g_Config.m_ClChatOld;
+	Map["cl_chat_size"] = &g_Config.m_ClChatFontSize;
+	Map["cl_chat_width"] = &g_Config.m_ClChatWidth;
+	Map["cl_show_direction"] = &g_Config.m_ClShowDirection;
+	Map["cl_direction_size"] = &g_Config.m_ClDirectionSize;
+	Map["cl_old_gun_position"] = &g_Config.m_ClOldGunPosition;
+	Map["cl_confirm_disconnect_time"] = &g_Config.m_ClConfirmDisconnectTime;
+	Map["cl_confirm_quit_time"] = &g_Config.m_ClConfirmQuitTime;
+	Map["cl_config_version"] = &g_Config.m_ClConfigVersion;
+	Map["cl_demo_slice_begin"] = &g_Config.m_ClDemoSliceBegin;
+	Map["cl_demo_slice_end"] = &g_Config.m_ClDemoSliceEnd;
+	Map["cl_demo_show_speed"] = &g_Config.m_ClDemoShowSpeed;
+	Map["cl_demo_show_pause"] = &g_Config.m_ClDemoShowPause;
+	Map["cl_demo_keyboard_shortcuts"] = &g_Config.m_ClDemoKeyboardShortcuts;
+}
+int* SuperMap::Get(std::string a)
+{
+	return Map[a];
+}
 
 /* This is required for the localization script to find the labels of the default bind buttons specified in the configuration file:
 Localizable("Move left") Localizable("Move right") Localizable("Jump") Localizable("Prev. weapon") Localizable("Next weapon")
 Localizable("Zoom out") Localizable("Default zoom") Localizable("Zoom in") Localizable("Scoreboard") Localizable("Chat") Localizable("Team chat")
 Localizable("Vote yes") Localizable("Vote no") Localizable("Toggle dummy")
 */
+//c is target, ab is line.
+std::unordered_map<std::string, int*> SuperMap::Map;
+auto Cross = [](vec2 a, vec2 b){
+	return a.x*b.y-b.x*a.y;
+};
 
+auto IsUpLine = [](vec2 c, vec2 a, vec2 b){
+	if(minimum(a.x, b.x) <= c.x && maximum(a.x, b.x) >= c.x && maximum(a.y, b.y) >= c.y)
+	{
+		float k = (b.y - a.y) / (b.x - a.x);
+		float d = (a.y * b.x - a.x * b.y) / (b.x - a.x);
+		if(c.y - k * c.x - d <= EPS)
+			return true;
+	}
+	return false;
+};
+
+auto IsTwoLine = [](vec2 a, vec2 b, vec2 c, vec2 d){
+	vec2 ab, cd, ac, ad, cb, ca;
+	ab.x=b.x-a.x;cd.x=d.x-c.x;ac.x=c.x-a.x;ad.x=d.x-a.x;cb.x=b.x-c.x;ca.x=a.x-c.x;
+	ab.y=b.y-a.y;cd.y=d.y-c.y;ac.y=c.y-a.y;ad.y=d.y-a.y;cb.y=b.y-c.y;ca.y=a.y-c.y;
+	if(std::abs(Cross(cd,ab)) <= EPS)
+		return false;
+	if(Cross(ac,ab)*Cross(ad,ab)<EPS&&Cross(ca,cd)*Cross(cb,cd)<EPS)
+		return true;
+	return false;
+};
+
+auto TwoLine = [](vec2 a, vec2 b, vec2 c, vec2 d)->vec2{
+	float t=((b.y-a.y)*(c.x-a.x)-(c.y-a.y)*(b.x-a.x))/((d.y-c.y)*(b.x-a.x)-(b.y-a.y)*(d.x-c.x));
+	vec2 gg;
+	gg.x=(d.x-c.x)*t+c.x;
+	gg.y=(d.y-c.y)*t+c.y;
+	return gg;
+};
+
+auto Inside = [](float a, float b, vec2 d, vec2 bf){
+	float c=2.0f+2*std::sin((18.0f)/360*2*pi);
+	vec2 f,j,o,h,e,p,q,u,r,s;
+	f.x=a/2;f.y=0.0f;j.x=0.0f;j.y=b/c;o.x=a;o.y=b/c;h.x=a/2/c;h.y=b;e.x=a-a/2/c;e.y=b;
+	p.x=a/c;p.y=b/c;q.x=a-a/c;q.y=b/c;u.x=a/c-a/2/c/c;u.y=b-b/c;r.x=a-a/c+a/2/c/c;r.y=b-b/c;s.x=a/2;s.y=b-b/c+b/c/c;
+	f+=bf;j+=bf;o+=bf;h+=bf;e+=bf;p+=bf;q+=bf;u+=bf;r+=bf;s+=bf;
+	vec2 pts[10]={j,p,f,q,o,r,e,s,h,u};
+	int flag=0;
+	for(int i=0;i<10;i++)
+	{
+		if(IsUpLine(d,pts[i],pts[i==9?0:i+1]))
+			flag++;
+	}
+	if(flag%2==0)
+		return false;
+	return true;
+};
 CTouchControls::CTouchButton::CTouchButton(CTouchControls *pTouchControls) :
 	m_pTouchControls(pTouchControls),
 	m_VisibilityCached(false)
@@ -59,6 +352,7 @@ CTouchControls::CTouchButton::CTouchButton(CTouchButton &&Other) noexcept :
 	m_UnitRect(Other.m_UnitRect),
 	m_Shape(Other.m_Shape),
 	m_vVisibilities(Other.m_vVisibilities),
+	m_vMenus(Other.m_vMenus),
 	m_pBehavior(std::move(Other.m_pBehavior)),
 	m_VisibilityCached(false)
 {
@@ -74,6 +368,7 @@ CTouchControls::CTouchButton &CTouchControls::CTouchButton::operator=(CTouchButt
 	m_vVisibilities = Other.m_vVisibilities;
 	m_pBehavior = std::move(Other.m_pBehavior);
 	m_VisibilityCached = false;
+	m_vMenus = std::move(Other.m_vMenus);
 	return *this;
 }
 
@@ -103,6 +398,11 @@ void CTouchControls::CTouchButton::UpdateScreenFromUnitRect()
 			m_ScreenRect.x += (m_ScreenRect.w - m_ScreenRect.h) / 2.0f;
 			m_ScreenRect.w = m_ScreenRect.h;
 		}
+	}
+	if(m_Shape == EButtonShape::SSTAR)
+	{
+		float a=m_ScreenRect.w;
+		m_ScreenRect.h=a*std::cos((18.0f)/360*2*pi);
 	}
 }
 
@@ -187,6 +487,37 @@ vec2 CTouchControls::CTouchButton::ClampTouchPosition(vec2 TouchPosition) const
 		}
 		break;
 	}
+	case EButtonShape::STAR:
+	case EButtonShape::SSTAR:
+	{
+		vec2 bf;bf.x=m_ScreenRect.x;bf.y=m_ScreenRect.y;
+		if(Inside(m_ScreenRect.w,m_ScreenRect.h,TouchPosition,bf))
+			break;
+		else
+		{
+			float a=m_ScreenRect.w;
+			float b=m_ScreenRect.h;
+			float c=2.0f+2*std::sin((18.0f)/360*2*pi);
+			vec2 f,j,o,h,e,p,q,u,r,s;
+			f.x=a/2;f.y=0.0f;j.x=0.0f;j.y=b/c;o.x=a;o.y=b/c;h.x=a/2/c;h.y=b;e.x=a-a/2/c;e.y=b;
+			p.x=a/c;p.y=b/c;q.x=a-a/c;q.y=b/c;u.x=a/c-a/2/c/c;u.y=b-b/c;r.x=a-a/c+a/2/c/c;r.y=b-b/c;s.x=a/2;s.y=b-b/c+b/c/c;
+			vec2 pts[10]={j,p,f,q,o,r,e,s,h,u};
+			for(int i=0;i<10;i++){
+				pts[i].x+=m_ScreenRect.x;
+				pts[i].y+=m_ScreenRect.y;
+			}
+			int i;
+			for(i=0;i<10;i++)
+			{
+				pts[i].x+=m_ScreenRect.x;
+				pts[i].y+=m_ScreenRect.y;
+				if(IsTwoLine(TouchPosition,m_ScreenRect.Center(),pts[i],pts[i==9?0:i+1]))
+					break;
+			}
+			TouchPosition=TwoLine(TouchPosition,m_ScreenRect.Center(),pts[i],pts[i==9?0:i+1]);
+			break;
+		}
+	}
 	default:
 		dbg_assert(false, "Unhandled shape");
 		break;
@@ -202,6 +533,10 @@ bool CTouchControls::CTouchButton::IsInside(vec2 TouchPosition) const
 		return m_ScreenRect.Inside(TouchPosition);
 	case EButtonShape::CIRCLE:
 		return distance(TouchPosition, m_ScreenRect.Center()) <= minimum(m_ScreenRect.w, m_ScreenRect.h) / 2.0f;
+	case EButtonShape::STAR:
+	case EButtonShape::SSTAR:
+		{vec2 bf;bf.x=m_ScreenRect.x;bf.y=m_ScreenRect.y;
+		return Inside(m_ScreenRect.w,m_ScreenRect.h,TouchPosition,bf);}
 	default:
 		dbg_assert(false, "Unhandled shape");
 		return false;
@@ -211,9 +546,11 @@ bool CTouchControls::CTouchButton::IsInside(vec2 TouchPosition) const
 void CTouchControls::CTouchButton::UpdateVisibility()
 {
 	const bool PrevVisibility = m_VisibilityCached;
-	m_VisibilityCached = m_pTouchControls->m_EditingActive || std::all_of(m_vVisibilities.begin(), m_vVisibilities.end(), [&](CButtonVisibility Visibility) {
+	m_VisibilityCached = m_pTouchControls->m_EditingActive || (std::all_of(m_vVisibilities.begin(), m_vVisibilities.end(), [&](CButtonVisibility Visibility) {
 		return m_pTouchControls->m_aVisibilityFunctions[(int)Visibility.m_Type].m_Function() == Visibility.m_Parity;
-	});
+	}) && std::all_of(m_vMenus.begin(), m_vMenus.end(), [&](const auto& Menu) {
+		return m_pTouchControls->m_vMenuMap[Menu.first] == Menu.second;
+	}));
 	if(m_VisibilityCached && !PrevVisibility)
 	{
 		m_VisibilityStartTime = time_get_nanoseconds();
@@ -226,15 +563,49 @@ bool CTouchControls::CTouchButton::IsVisible() const
 }
 
 // TODO: Optimization: Use text and quad containers for rendering
-void CTouchControls::CTouchButton::Render() const
+void CTouchControls::CTouchButton::Render()
 {
-	const ColorRGBA ButtonColor = m_pBehavior->IsActive() ? m_pTouchControls->m_BackgroundColorActive : m_pTouchControls->m_BackgroundColorInactive;
-
+	float ctrx = m_UnitRect.m_X + (float)m_UnitRect.m_W / 2.0f;
+	float ctry = m_UnitRect.m_Y + (float)m_UnitRect.m_H / 2.0f;
+	float alpha = m_pBehavior->IsActive()?g_Config.m_ClButtonAlphaActive / 255.0f:g_Config.m_ClButtonAlpha / 255.0f;
+	ColorRGBA ButtonColor;
+	auto rainbow = [&](){
+		if(!m_pTouchControls->fknanos)
+		{
+			m_pTouchControls->m_RainbowTimers = time_get_nanoseconds();
+			m_pTouchControls->fknanos = 1;
+			m_pTouchControls->m_Rainbows = 0.0f;
+		}
+		if(time_get_nanoseconds() - m_pTouchControls->m_RainbowTimers >= static_cast<std::chrono::milliseconds>((int)(g_Config.m_ClButtonRainbowSpeed / 10.0f)))
+		{
+			m_pTouchControls->m_RainbowTimers = time_get_nanoseconds();
+			m_pTouchControls->m_Rainbows += 1.0f;
+		}
+		float rainbownums = m_pTouchControls->m_Rainbows + (ctrx + ctry) / 2000000 * 600;
+		m_pTouchControls->m_Rainbows = (m_pTouchControls->m_Rainbows >= 600.0f) ? m_pTouchControls->m_Rainbows - 600.0f:m_pTouchControls->m_Rainbows;
+		rainbownums = (rainbownums >= 600.0f) ? rainbownums - 600.0f : rainbownums;
+		return color_cast<ColorRGBA>(ColorHSLA(rainbownums / 600.0f,g_Config.m_ClButtonRainbowSat / 255.0f,g_Config.m_ClButtonRainbowLig / 255.0f, alpha));
+	};
+	switch(g_Config.m_ClButtonColorType)
+	{
+		case 0: ButtonColor = m_pBehavior->IsActive() ? ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f);break;
+		case 1: ButtonColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClButtonColorStatic));ButtonColor.a = alpha;break;
+		case 2: ButtonColor = rainbow();break;
+	}
+	alpha = m_pBehavior->IsActive()?g_Config.m_ClButtonAlphaActive / 255.0f:g_Config.m_ClButtonAlpha / 255.0f;
+	alpha = (g_Config.m_ClButtonColorType == 0) ? 0.25f:alpha;
+	CBarTouchButtonBehavior* tmp = nullptr;
+	tmp = dynamic_cast<CBarTouchButtonBehavior*>(m_pBehavior.get());
+	if(tmp)
+	{
+		m_pTouchControls->Ui()->DoScrollbarOption(tmp->m_Target, tmp->m_Target, &m_ScreenRect, tmp->m_Label.c_str(), tmp->m_Min, tmp->m_Max, &CUi::ms_LinearScrollbarScale, *(tmp->m_Target), "");
+		return;
+	}
 	switch(m_Shape)
 	{
 	case EButtonShape::RECT:
 	{
-		m_ScreenRect.Draw(ButtonColor, m_BackgroundCorners, 10.0f);
+		m_ScreenRect.Draw(ColorRGBA(ButtonColor.r,ButtonColor.g,ButtonColor.b,alpha), m_BackgroundCorners, 10.0f);
 		break;
 	}
 	case EButtonShape::CIRCLE:
@@ -243,8 +614,33 @@ void CTouchControls::CTouchButton::Render() const
 		const float Radius = minimum(m_ScreenRect.w, m_ScreenRect.h) / 2.0f;
 		m_pTouchControls->Graphics()->TextureClear();
 		m_pTouchControls->Graphics()->QuadsBegin();
-		m_pTouchControls->Graphics()->SetColor(ButtonColor);
+		m_pTouchControls->Graphics()->SetColor(ColorRGBA(ButtonColor.r,ButtonColor.g,ButtonColor.b,alpha));
 		m_pTouchControls->Graphics()->DrawCircle(Center.x, Center.y, Radius, maximum(round_truncate(Radius / 4.0f) & ~1, 32));
+		m_pTouchControls->Graphics()->QuadsEnd();
+		break;
+	}
+	case EButtonShape::STAR:
+	case EButtonShape::SSTAR:
+	{
+		float a=m_ScreenRect.w;
+		float b=m_ScreenRect.h;
+		float c=2.0f+2*std::sin((18.0f)/360*2*pi);
+		vec2 f,j,o,h,e,p,q,u,r,s;
+		f.x=a/2;f.y=0.0f;j.x=0.0f;j.y=b/c;o.x=a;o.y=b/c;h.x=a/2/c;h.y=b;e.x=a-a/2/c;e.y=b;
+		p.x=a/c;p.y=b/c;q.x=a-a/c;q.y=b/c;u.x=a/c-a/2/c/c;u.y=b-b/c;r.x=a-a/c+a/2/c/c;r.y=b-b/c;s.x=a/2;s.y=b-b/c+b/c/c;
+		vec2 bf;bf.x=m_ScreenRect.x;bf.y=m_ScreenRect.y;
+		f+=bf;j+=bf;o+=bf;h+=bf;e+=bf;p+=bf;q+=bf;u+=bf;r+=bf;s+=bf;
+		IGraphics::CFreeformItem star[5];
+		const vec2 Center = m_ScreenRect.Center();
+		star[0]=IGraphics::CFreeformItem(Center.x,Center.y,p.x,p.y,q.x,q.y,f.x,f.y);
+		star[1]=IGraphics::CFreeformItem(Center.x,Center.y,q.x,q.y,r.x,r.y,o.x,o.y);
+		star[2]=IGraphics::CFreeformItem(Center.x,Center.y,r.x,r.y,s.x,s.y,e.x,e.y);
+		star[3]=IGraphics::CFreeformItem(Center.x,Center.y,s.x,s.y,u.x,u.y,h.x,h.y);
+		star[4]=IGraphics::CFreeformItem(Center.x,Center.y,u.x,u.y,p.x,p.y,j.x,j.y);
+		m_pTouchControls->Graphics()->TextureClear();
+		m_pTouchControls->Graphics()->QuadsBegin();
+		m_pTouchControls->Graphics()->SetColor(ColorRGBA(ButtonColor.r,ButtonColor.g,ButtonColor.b,alpha));
+		m_pTouchControls->Graphics()->QuadsDrawFreeform(star,5);
 		m_pTouchControls->Graphics()->QuadsEnd();
 		break;
 	}
@@ -259,6 +655,81 @@ void CTouchControls::CTouchButton::Render() const
 	m_ScreenRect.Margin(10.0f, &LabelRect);
 	SLabelProperties LabelProps;
 	LabelProps.m_MaxWidth = LabelRect.w;
+	alpha = m_pBehavior->IsActive()?g_Config.m_ClLabelAlphaActive / 255.0f:g_Config.m_ClLabelAlpha / 255.0f;
+//ForgottenCat Gonna Do Sonething Unique!
+	int j=0;
+	char e[1000]="";
+	LabelProps.m_vColorSplits.clear();
+	if((LabelData.m_Type == CButtonLabel::EType::PLAIN || LabelData.m_Type == CButtonLabel::EType::LOCALIZED) && *LabelData.m_pLabel=='%' && g_Config.m_ClLabelColorType == 0)
+	{
+		int tmp_length = str_length(LabelData.m_pLabel);
+		int a[1000]={};char d[1000]="";
+		const char *b = LabelData.m_pLabel;
+		for(int i=0;i<tmp_length;i++)
+		{
+			if(*(b+i) == '%' && i < tmp_length-1)
+			{
+				a[j] = i - 2*j;
+				d[j] = *(b+i+1);
+				j++;i++;
+			}
+		}
+		if(j!=0)
+		{
+			for(int i=0;i<j;i++)
+			{
+				int tmpf=0;
+				if(a[i+1])
+					tmpf=1;
+				switch(d[i])
+				{
+					case 'c':LabelProps.m_vColorSplits.emplace_back(a[i],(tmpf)?a[i+1]-a[i]:tmp_length-2*j-a[i],ColorRGBA(1.0f,0.0f,0.0f,1.0f));break;
+					case 'a':LabelProps.m_vColorSplits.emplace_back(a[i],(tmpf)?a[i+1]-a[i]:tmp_length-2*j-a[i],ColorRGBA(0.6f,1.0f,0.6f,1.0f));break;
+					case 'b':LabelProps.m_vColorSplits.emplace_back(a[i],(tmpf)?a[i+1]-a[i]:tmp_length-2*j-a[i],ColorRGBA(0.0f,1.0f,1.0f,1.0f));break;
+					case 'd':LabelProps.m_vColorSplits.emplace_back(a[i],(tmpf)?a[i+1]-a[i]:tmp_length-2*j-a[i],ColorRGBA(1.0f,0.8f,1.0f,1.0f));break;
+					case 'e':LabelProps.m_vColorSplits.emplace_back(a[i],(tmpf)?a[i+1]-a[i]:tmp_length-2*j-a[i],ColorRGBA(1.0f,1.0f,0.0f,1.0f));break;
+					case 'f':LabelProps.m_vColorSplits.emplace_back(a[i],(tmpf)?a[i+1]-a[i]:tmp_length-2*j-a[i],ColorRGBA(1.0f,1.0f,1.0f,1.0f));break;
+				}
+			}
+			int k=0;
+			for(int i=0;i<tmp_length;i++)
+			{
+				if(*(b+i) == '%')
+				{
+					i++;
+					continue;
+				}
+				e[k] = *(b+i);
+				k++;
+			}
+		}
+	}
+	const char* manwhatcanisay = static_cast<const char*>(e);
+	if(LabelData.m_Type == CButtonLabel::EType::RAINBOW || g_Config.m_ClLabelColorType == 2)
+	{
+		if(!m_pTouchControls->fknano)
+		{
+			m_pTouchControls->m_RainbowTimer = time_get_nanoseconds();
+			m_pTouchControls->fknano = 1;
+			m_pTouchControls->m_Rainbow = 0.0f;
+		}
+		if(time_get_nanoseconds() - m_pTouchControls->m_RainbowTimer >= static_cast<std::chrono::milliseconds>((int)(g_Config.m_ClLabelRainbowSpeed / 10.0f)))
+		{
+			m_pTouchControls->m_RainbowTimer = time_get_nanoseconds();
+			m_pTouchControls->m_Rainbow += 1.0f;
+		}
+		float rainbownum = m_pTouchControls->m_Rainbow + (ctrx + ctry) / 2000000 * 600;
+		m_pTouchControls->m_Rainbow = (m_pTouchControls->m_Rainbow >= 600.0f) ? m_pTouchControls->m_Rainbow - 600.0f:m_pTouchControls->m_Rainbow;
+		rainbownum = (rainbownum >= 600.0f) ? rainbownum - 600.0f : rainbownum;
+		LabelProps.m_vColorSplits.emplace_back(0,str_length(LabelData.m_pLabel),color_cast<ColorRGBA>(ColorHSLA(rainbownum / 600.0f,g_Config.m_ClLabelRainbowSat / 255.0f,g_Config.m_ClLabelRainbowLig / 255.0f, alpha)));
+		j = 0;
+	}
+	if(LabelData.m_Type != CButtonLabel::EType::RAINBOW && g_Config.m_ClLabelColorType == 1)
+	{
+		ColorRGBA abcd = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClLabelColorStatic));
+		abcd.a = alpha;
+		LabelProps.m_vColorSplits.emplace_back(0,str_length(LabelData.m_pLabel),abcd);
+	}
 	if(LabelData.m_Type == CButtonLabel::EType::ICON)
 	{
 		m_pTouchControls->TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
@@ -270,7 +741,187 @@ void CTouchControls::CTouchButton::Render() const
 	else
 	{
 		const char *pLabel = LabelData.m_Type == CButtonLabel::EType::LOCALIZED ? Localize(LabelData.m_pLabel) : LabelData.m_pLabel;
-		m_pTouchControls->Ui()->DoLabel(&LabelRect, pLabel, FontSize, TEXTALIGN_MC, LabelProps);
+		m_pTouchControls->Ui()->DoLabel(&LabelRect, (j)?manwhatcanisay:pLabel, FontSize, TEXTALIGN_MC, LabelProps);
+	}
+	
+	CBindSlideTouchButtonBehavior* pTmp = nullptr;
+	if(m_pBehavior->GetType() == "bind-slide")
+		pTmp = static_cast<CBindSlideTouchButtonBehavior*>(m_pBehavior.get());
+	
+	if(pTmp && (pTmp->m_IsOpen || pTmp->m_IsSliding))
+	{
+		size_t RenderFlag = 0;
+		if(m_UnitRect.m_X + m_UnitRect.m_W <= 940000)
+			RenderFlag += (1 << 0);//1:Right
+		if(m_UnitRect.m_X >= 60000)
+			RenderFlag += (1 << 1);//2:Left
+		if(m_UnitRect.m_Y + m_UnitRect.m_H <= 940000)
+			RenderFlag += (1 << 2);//4:Down
+		if(m_UnitRect.m_Y >= 60000)
+			RenderFlag += (1 << 3);//8:Up
+		size_t TrueFlag = 0;
+		vec2 Heart;
+		Heart.x = m_UnitRect.m_X + m_UnitRect.m_W / 2;
+		Heart.y = m_UnitRect.m_Y + m_UnitRect.m_H / 2;
+		CUIRect ExtraRect;
+		const vec2 ScreenSize = m_pTouchControls->CalculateScreenSize();
+		float Dx = ScreenSize.x / BUTTON_SIZE_SCALE;
+		float Dy = ScreenSize.y / BUTTON_SIZE_SCALE;
+		ExtraRect.w = 50000 * Dx;
+		ExtraRect.h = 50000 * Dy;
+		float Tan =(pTmp->m_AccumulatedDelta.x != 0) ? pTmp->m_AccumulatedDelta.y / pTmp->m_AccumulatedDelta.x : 100000.0f;
+		float rad = pi / 180.0f;
+		SLabelProperties ExtraLabelProps = LabelProps;
+		ExtraLabelProps.m_MaxWidth = ExtraRect.w;
+		float ExtraFontSize = 17.0f;
+		vec2 delta;
+		delta.x = pTmp->m_AccumulatedDelta.x;
+		delta.y = pTmp->m_AccumulatedDelta.y;
+		
+		if(pTmp->m_AccumulatedDelta.y < 0.0f)
+		{
+			if(Tan >= std::tan(-22.5 * rad) && Tan < 0 && (RenderFlag & 1) == 1)
+			{
+				TrueFlag = 1;
+				ExtraRect.x = (m_UnitRect.m_X + m_UnitRect.m_W + 10000) * Dx;
+				ExtraRect.y = (Heart.y - 25000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::RIGHT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+			if(Tan >= std::tan(-67.5 * rad) && Tan < std::tan(-22.5 * rad) && (RenderFlag & 9) == 9)
+			{
+				TrueFlag = 9;
+				ExtraRect.x = (m_UnitRect.m_X + m_UnitRect.m_W + 10000) * Dx;
+				ExtraRect.y = (m_UnitRect.m_Y - 60000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::UPRIGHT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+			if((RenderFlag & 8) == 8 && (Tan < std::tan(-67.5 * rad) || Tan > std::tan(-112.5 * rad)))
+			{
+				TrueFlag = 8;
+				ExtraRect.x = (Heart.x - 25000) * Dx;
+				ExtraRect.y = (m_UnitRect.m_Y - 60000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::UP).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+			if(Tan > 0 && Tan <= std::tan(-157.5 * rad) && (RenderFlag & 2) == 2)
+			{
+				TrueFlag = 2;
+				ExtraRect.x = (m_UnitRect.m_X - 60000) * Dx;
+				ExtraRect.y = (Heart.y - 25000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::LEFT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+	
+			}
+			if(Tan > std::tan(-157.5 * rad) && Tan <= std::tan(-112.5 * rad) && (RenderFlag & 10) == 10)
+			{
+				TrueFlag = 10;
+				ExtraRect.x = (m_UnitRect.m_X - 60000) * Dx;
+				ExtraRect.y = (m_UnitRect.m_Y - 60000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::UPLEFT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+		}
+		else
+		{
+			if(Tan >= 0 && Tan < std::tan(22.5 * rad) && pTmp->m_AccumulatedDelta.x > 0 && (RenderFlag & 1) == 1)
+			{
+				TrueFlag = 1;
+				ExtraRect.x = (m_UnitRect.m_X + m_UnitRect.m_W + 10000) * Dx;
+				ExtraRect.y = (Heart.y - 25000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::RIGHT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+			if(Tan >= std::tan(22.5 * rad) && Tan < std::tan(67.5 * rad) && (RenderFlag & 5) == 5)
+			{
+				TrueFlag = 5;
+				ExtraRect.x = (m_UnitRect.m_X + m_UnitRect.m_W + 10000) * Dx;
+				ExtraRect.y = (m_UnitRect.m_Y + m_UnitRect.m_H + 10000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::DOWNRIGHT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+			if((RenderFlag & 4) == 4 && (Tan > std::tan(67.5 * rad) || Tan < std::tan(112.5 * rad)))
+			{
+				TrueFlag = 4;
+				ExtraRect.x = (Heart.x - 25000) * Dx;
+				ExtraRect.y = (m_UnitRect.m_Y + m_UnitRect.m_H + 10000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::DOWN).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+			if((RenderFlag & 2) == 2 && Tan <= 0 && Tan > std::tan(157.5 * rad) && m_pBehavior->m_AccumulatedDelta.x < 0)
+			{
+				TrueFlag = 2;
+				ExtraRect.x = (m_UnitRect.m_X - 60000) * Dx;
+				ExtraRect.y = (Heart.y - 25000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::LEFT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+			if((RenderFlag & 6) == 6 && Tan > std::tan(112.5 * rad) && Tan <= std::tan(157.5 * rad))
+			{
+				TrueFlag = 6;
+				ExtraRect.x = (m_UnitRect.m_X - 60000) * Dx;
+				ExtraRect.y = (m_UnitRect.m_Y + m_UnitRect.m_H + 10000) * Dy;
+				ExtraRect.Draw(ColorRGBA(0.2f, 0.2f, 0.2f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+				m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::DOWNLEFT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+			}
+		}
+
+		if((RenderFlag & 1) == 1 && TrueFlag != 1)
+		{
+			ExtraRect.x = (m_UnitRect.m_X + m_UnitRect.m_W + 10000) * Dx;
+			ExtraRect.y = (Heart.y - 25000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::RIGHT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
+		if((RenderFlag & 9) == 9 && TrueFlag != 9)
+		{
+			ExtraRect.x = (m_UnitRect.m_X + m_UnitRect.m_W + 10000) * Dx;
+			ExtraRect.y = (m_UnitRect.m_Y - 60000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::UPRIGHT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
+		if((RenderFlag & 8) == 8 && TrueFlag != 8)
+		{
+			ExtraRect.x = (Heart.x - 25000) * Dx;
+			ExtraRect.y = (m_UnitRect.m_Y - 60000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::UP).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
+		if((RenderFlag & 2) == 2 && TrueFlag != 2)
+		{
+			ExtraRect.x = (m_UnitRect.m_X - 60000) * Dx;
+			ExtraRect.y = (Heart.y - 25000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::LEFT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
+		if((RenderFlag & 10) == 10 && TrueFlag != 10)
+		{		
+			ExtraRect.x = (m_UnitRect.m_X - 60000) * Dx;
+			ExtraRect.y = (m_UnitRect.m_Y - 60000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::UPLEFT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
+		if((RenderFlag & 5) == 5 && TrueFlag != 5)
+		{				
+			ExtraRect.x = (m_UnitRect.m_X + m_UnitRect.m_W + 10000) * Dx;				
+			ExtraRect.y = (m_UnitRect.m_Y + m_UnitRect.m_H + 10000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::DOWNRIGHT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
+		if((RenderFlag & 4) == 4 && TrueFlag != 4)
+		{
+			ExtraRect.x = (Heart.x - 25000) * Dx;
+			ExtraRect.y = (m_UnitRect.m_Y + m_UnitRect.m_H + 10000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::DOWN).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
+		if((RenderFlag & 6) == 6 && TrueFlag != 6)
+		{				
+			ExtraRect.x = (m_UnitRect.m_X - 60000) * Dx;
+			ExtraRect.y = (m_UnitRect.m_Y + m_UnitRect.m_H + 10000) * Dy;
+			ExtraRect.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 8.0f);
+			m_pTouchControls->Ui()->DoLabel(&ExtraRect, pTmp->GetLabel(CTouchControls::CBindSlideTouchButtonBehavior::EDirection::DOWNLEFT).m_pLabel, ExtraFontSize, TEXTALIGN_MC, ExtraLabelProps);
+		}
 	}
 }
 
@@ -297,6 +948,11 @@ void CTouchControls::CTouchButton::WriteToConfiguration(CJsonWriter *pWriter)
 	for(CButtonVisibility Visibility : m_vVisibilities)
 	{
 		str_format(aBuf, sizeof(aBuf), "%s%s", Visibility.m_Parity ? "" : "-", m_pTouchControls->m_aVisibilityFunctions[(int)Visibility.m_Type].m_pId);
+		pWriter->WriteStrValue(aBuf);
+	}
+	for(const auto& Menu : m_vMenus)
+	{
+		str_format(aBuf, sizeof(aBuf), "%s%s", Menu.second ? "extra-menu-" : "-extra-menu-", Menu.first.c_str());
 		pWriter->WriteStrValue(aBuf);
 	}
 	pWriter->EndArray();
@@ -389,17 +1045,17 @@ void CTouchControls::CIngameMenuTouchButtonBehavior::OnDeactivate()
 // Extra menu button:
 // - Short press: show/hide additional buttons (toggle extra-menu visibilities)
 // - Long press: open ingame menu
-CTouchControls::CExtraMenuTouchButtonBehavior::CExtraMenuTouchButtonBehavior(int Number) :
+CTouchControls::CExtraMenuTouchButtonBehavior::CExtraMenuTouchButtonBehavior(std::vector<std::string> Menus) :
 	CPredefinedTouchButtonBehavior(BEHAVIOR_ID),
-	m_Number(Number)
+	m_vMenus(Menus)
 {
-	if(m_Number == 0)
+	if(m_vMenus[0] == "")
 	{
 		str_copy(m_aLabel, "\xEF\x83\x89");
 	}
 	else
 	{
-		str_format(m_aLabel, sizeof(m_aLabel), "\xEF\x83\x89%d", m_Number + 1);
+		str_format(m_aLabel, sizeof(m_aLabel), "\xEF\x83\x89%s", m_vMenus[0].c_str());
 	}
 }
 
@@ -423,7 +1079,8 @@ void CTouchControls::CExtraMenuTouchButtonBehavior::OnDeactivate()
 	}
 	else
 	{
-		m_pTouchControls->m_aExtraMenuActive[m_Number] = !m_pTouchControls->m_aExtraMenuActive[m_Number];
+		for(const std::string& Menu : m_vMenus)
+		m_pTouchControls->m_vMenuMap[Menu] = !m_pTouchControls->m_vMenuMap[Menu];
 	}
 }
 
@@ -431,8 +1088,32 @@ void CTouchControls::CExtraMenuTouchButtonBehavior::WriteToConfiguration(CJsonWr
 {
 	CPredefinedTouchButtonBehavior::WriteToConfiguration(pWriter);
 
-	pWriter->WriteAttribute("number");
-	pWriter->WriteIntValue(m_Number + 1);
+	if(m_vMenus.size() == 1)
+	{
+		pWriter->WriteAttribute("number");
+		pWriter->WriteStrValue(m_vMenus[0].c_str());
+	}
+	else
+	{
+		pWriter->WriteAttribute("number");
+		pWriter->BeginArray();
+		for(const auto& Menu : m_vMenus)
+		{
+			pWriter->WriteStrValue(Menu.c_str());
+		}
+		pWriter->EndArray();
+	}
+}
+
+// Close All Extra Menus button : You know what I mean.
+CTouchControls::CButtonLabel CTouchControls::CCloseAllExtraMenuTouchButtonBehavior::GetLabel() const
+{
+	return {CButtonLabel::EType::PLAIN, "Reset"};
+}
+void CTouchControls::CCloseAllExtraMenuTouchButtonBehavior::OnDeactivate()
+{
+	for(auto& Menu : m_pTouchControls->m_vMenuMap)
+	Menu.second = false;
 }
 
 // Emoticon button: keeps the emoticon HUD open, next touch in emoticon HUD will close it again.
@@ -695,6 +1376,316 @@ void CTouchControls::CBindToggleTouchButtonBehavior::WriteToConfiguration(CJsonW
 	pWriter->EndArray();
 }
 
+//Bind slide
+CTouchControls::CButtonLabel CTouchControls::CBindSlideTouchButtonBehavior::GetLabel() const
+{
+	for(const auto &Command: m_vDirCommands)
+		if(Command.m_Direction == EDirection::CENTER)
+			return {Command.m_LabelType, Command.m_Label.c_str()};
+	return {};
+}
+CTouchControls::CButtonLabel CTouchControls::CBindSlideTouchButtonBehavior::GetLabel(const char *Direction) const
+{
+	for(const auto &Command: m_vDirCommands)
+		if(m_pTouchControls->DIRECTION_NAMES[(int)Command.m_Direction] == Direction)
+			return {Command.m_LabelType, Command.m_Label.c_str()};
+	return {};
+}
+CTouchControls::CButtonLabel CTouchControls::CBindSlideTouchButtonBehavior::GetLabel(EDirection Direction) const
+{
+	for(const auto &Command: m_vDirCommands)
+		if(Command.m_Direction == Direction)
+			return {Command.m_LabelType, Command.m_Label.c_str()};
+	return {};
+}
+void CTouchControls::CBindSlideTouchButtonBehavior::OnUpdate()
+{
+	const auto Now = time_get_nanoseconds();		
+	if(Now - m_ActivationStartTime >= static_cast<std::chrono::milliseconds>(g_Config.m_ClBindSlideExtraRenderTime))
+		m_IsOpen = true;
+	if(m_AccumulatedDelta.x*m_AccumulatedDelta.x + m_AccumulatedDelta.y*m_AccumulatedDelta.y >= g_Config.m_ClBindSlideDistance/1000.0f*g_Config.m_ClBindSlideDistance/1000.0f)
+		m_IsSliding = true;
+	else
+		m_IsSliding = false;
+}
+void CTouchControls::CBindSlideTouchButtonBehavior::OnDeactivate()
+{
+	CDirCommand Commands[(int)EDirection::NUM_DIRECTIONS];
+	for(const auto &Command: m_vDirCommands)
+	{
+		Commands[(int)Command.m_Direction] = Command;
+		Commands[(int)Command.m_Direction].m_IsInit = true;
+	}
+		
+	if(!m_IsSliding)
+		m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::CENTER].m_Command.c_str());
+	else
+	{
+		float Tan =(m_AccumulatedDelta.x != 0) ? m_AccumulatedDelta.y / m_AccumulatedDelta.x : 100000.0f;
+		float rad = pi / 180.0f;
+		//Sliding to different angles, executing different commands.
+		if(m_AccumulatedDelta.y < 0.0f)
+		{
+			if(Tan >= std::tan(-22.5 * rad) && Tan < 0 && Commands[(int)EDirection::RIGHT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::RIGHT].m_Command.c_str());
+			if(Tan >= std::tan(-67.5 * rad) && Tan < std::tan(-22.5 * rad) && Commands[(int)EDirection::UPRIGHT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::UPRIGHT].m_Command.c_str());
+			if((Tan < std::tan(-67.5 * rad) || Tan > std::tan(-112.5 * rad)) && Commands[(int)EDirection::UP].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::UP].m_Command.c_str());
+			if(Tan > 0 && Tan <= std::tan(-157.5 * rad) && Commands[(int)EDirection::LEFT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::LEFT].m_Command.c_str());
+			if(Tan > std::tan(-157.5 * rad) && Tan <= std::tan(-112.5 * rad) && Commands[(int)EDirection::UPLEFT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::UPLEFT].m_Command.c_str());
+		}
+		else
+		{
+			if(Tan >= 0 && Tan < std::tan(22.5 * rad) && m_AccumulatedDelta.x > 0 && Commands[(int)EDirection::RIGHT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::RIGHT].m_Command.c_str());
+			if(Tan >= std::tan(22.5 * rad) && Tan < std::tan(67.5 * rad) && Commands[(int)EDirection::DOWNRIGHT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::DOWNRIGHT].m_Command.c_str());
+			if((Tan > std::tan(67.5 * rad) || Tan < std::tan(112.5 * rad)) && Commands[(int)EDirection::DOWN].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::DOWN].m_Command.c_str());
+			if(Tan <= 0 && Tan > std::tan(157.5 * rad) && m_AccumulatedDelta.x < 0 && Commands[(int)EDirection::LEFT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::LEFT].m_Command.c_str());
+			if(Tan > std::tan(112.5 * rad) && Tan <= std::tan(157.5 * rad) && Commands[(int)EDirection::DOWNLEFT].m_IsInit)
+				m_pTouchControls->Console()->ExecuteLine(Commands[(int)EDirection::DOWNLEFT].m_Command.c_str());
+		}
+	}
+	m_AccumulatedDelta = vec2(0.0f, 0.0f);
+	m_IsOpen = false;
+	m_IsSliding = false;
+}
+void CTouchControls::CBindSlideTouchButtonBehavior::WriteToConfiguration(CJsonWriter *pWriter)
+{
+	pWriter->WriteAttribute("type");
+	pWriter->WriteStrValue(BEHAVIOR_TYPE);
+
+	pWriter->WriteAttribute("commands");
+	pWriter->BeginArray();
+
+	for(const auto &Command : m_vDirCommands)
+	{
+		pWriter->BeginObject();
+
+		pWriter->WriteAttribute("label");
+		pWriter->WriteStrValue(Command.m_Label.c_str());
+
+		pWriter->WriteAttribute("label-type");
+		pWriter->WriteStrValue(LABEL_TYPE_NAMES[(int)Command.m_LabelType]);
+
+		pWriter->WriteAttribute("direction");
+		pWriter->WriteStrValue(DIRECTION_NAMES[(int)Command.m_Direction]);
+
+		pWriter->WriteAttribute("command");
+		pWriter->WriteStrValue(Command.m_Command.c_str());
+
+		pWriter->EndObject();
+	}
+
+	pWriter->EndArray();
+}
+//Bar 
+CTouchControls::CButtonLabel CTouchControls::CBarTouchButtonBehavior::GetLabel() const
+{
+	return {CTouchControls::CButtonLabel::EType::PLAIN, m_Label.c_str()};
+}
+void CTouchControls::CBarTouchButtonBehavior::WriteToConfiguration(CJsonWriter *pWriter)
+{
+	pWriter->WriteAttribute("type");
+	pWriter->WriteStrValue(BEHAVIOR_TYPE);
+
+	pWriter->WriteAttribute("label");
+	pWriter->WriteStrValue(m_Label.c_str());
+
+	pWriter->WriteAttribute("min");
+	pWriter->WriteIntValue(m_Min);
+
+	pWriter->WriteAttribute("max");
+	pWriter->WriteIntValue(m_Max);
+
+	pWriter->WriteAttribute("target");
+	pWriter->WriteStrValue(m_StrTarget.c_str());
+}
+
+//Stack Act
+void CTouchControls::CStackActTouchButtonBehavior::OnActivate()
+{
+	if(!m_pTouchControls->m_vCommandStack[m_Number].empty())
+	{
+		if(m_Current >= (int)m_pTouchControls->m_vCommandStack[m_Number].size())
+			m_Current = 0;
+		m_pTouchControls->Console()->ExecuteLineStroked(1, m_pTouchControls->m_vCommandStack[m_Number][m_Current].m_Command.c_str());
+	}
+	else m_pTouchControls->Console()->ExecuteLine("echo Stack is empty!");
+		
+}
+void CTouchControls::CStackActTouchButtonBehavior::OnDeactivate()
+{
+	if(m_pTouchControls->m_vCommandStack[m_Number].empty())
+	{
+		m_Current = 0;
+		return;
+	}
+	m_pTouchControls->Console()->ExecuteLineStroked(0, m_pTouchControls->m_vCommandStack[m_Number][m_Current].m_Command.c_str());
+	m_Current = (m_Current + 1) % m_pTouchControls->m_vCommandStack[m_Number].size();
+}
+CTouchControls::CButtonLabel CTouchControls::CStackActTouchButtonBehavior::GetLabel() const
+{
+	if(!m_pTouchControls->m_vCommandStack[m_Number].empty())
+	{
+		if(m_Current >= (int)m_pTouchControls->m_vCommandStack[m_Number].size())
+			m_Current = 0;
+		return {m_pTouchControls->m_vCommandStack[m_Number][m_Current].m_LabelType, m_pTouchControls->m_vCommandStack[m_Number][m_Current].m_Command.c_str()};
+	}
+	return {CButtonLabel::EType::PLAIN, ""};
+}
+void CTouchControls::CStackActTouchButtonBehavior::WriteToConfiguration(CJsonWriter *pWriter)
+{
+	pWriter->WriteAttribute("type");
+	pWriter->WriteStrValue(BEHAVIOR_TYPE);
+	
+	pWriter->WriteAttribute("number");
+	pWriter->WriteStrValue(m_Number.c_str());
+}
+
+//Stack Add
+CTouchControls::CButtonLabel CTouchControls::CStackAddTouchButtonBehavior::GetLabel() const
+{
+	return {m_LabelType, m_Label.c_str()};
+}
+void CTouchControls::CStackAddTouchButtonBehavior::OnActivate()
+{
+	m_pTouchControls->m_vCommandStack[m_Number].insert(m_pTouchControls->m_vCommandStack[m_Number].end(), m_vCommands.begin(), m_vCommands.end());
+}
+void CTouchControls::CStackAddTouchButtonBehavior::WriteToConfiguration(CJsonWriter *pWriter)
+{
+	pWriter->WriteAttribute("type");
+	pWriter->WriteStrValue(BEHAVIOR_TYPE);
+	
+	pWriter->WriteAttribute("label");
+	pWriter->WriteStrValue(m_Label);
+	
+	pWriter->WriteAttribute("label-type");
+	pWriter->WriteStrValue(LABEL_TYPE_NAMES[(int)m_LabelType]);
+	
+	pWriter->WriteAttribute("number");
+	pWriter->WriteStrValue(m_Number.c_str());
+	
+	pWriter->WriteAttribute("commands");
+	pWriter->BeginArray();
+
+	for(const auto &Command : m_vCommands)
+	{
+		pWriter->BeginObject();
+		
+		pWriter->WriteAttribute("label");
+		pWriter->WriteStrValue(Command.m_Label.c_str());
+		
+		pWriter->WriteAttribute("label-type");
+		pWriter->WriteStrValue(LABEL_TYPE_NAMES[(int)Command.m_LabelType]);
+		
+		pWriter->WriteAttribute("command");
+		pWriter->WriteStrValue(Command.m_Command.c_str());
+		
+		pWriter->EndObject();
+	}
+	
+	pWriter->EndArray();
+}
+//Stack Remove
+void CTouchControls::CStackRemoveTouchButtonBehavior::OnActivate()
+{
+	//-1:remove_all. If there is an order <= 0 on parsing, the m_vOrders will only have one value -1
+	if(m_vOrders[0] == -1)
+	{
+		m_pTouchControls->m_vCommandStack[m_Number].clear();
+		return;
+	}
+	for(const int& Order : m_vOrders)
+	{
+		if(Order >= (int)m_pTouchControls->m_vCommandStack[m_Number].size())
+			continue;
+		auto DeleteIndex = m_pTouchControls->m_vCommandStack[m_Number].begin() + Order - 1;
+		m_pTouchControls->m_vCommandStack[m_Number].erase(DeleteIndex);
+	}
+}
+
+CTouchControls::CButtonLabel CTouchControls::CStackRemoveTouchButtonBehavior::GetLabel() const
+{
+	return {CButtonLabel::EType::ICON, m_Label.c_str()};
+}
+
+void CTouchControls::CStackRemoveTouchButtonBehavior::WriteToConfiguration(CJsonWriter *pWriter)
+{
+	pWriter->WriteAttribute("type");
+	pWriter->WriteStrValue(BEHAVIOR_TYPE);
+	
+	pWriter->WriteAttribute("number");
+	pWriter->WriteStrValue(m_Number.c_str());
+	
+	pWriter->WriteAttribute("order");
+	pWriter->BeginArray();
+
+	for(const int &Order : m_vOrders)
+	{
+		pWriter->WriteIntValue(Order);
+	}
+	
+	pWriter->EndArray();
+}
+
+//Stack Show
+//OnActivate for echoing the full label.
+void CTouchControls::CStackShowTouchButtonBehavior::OnActivate()
+{
+	std::string Main;
+	if(m_Order >= (int)m_pTouchControls->m_vCommandStack[m_Number].size())
+	{
+		m_pTouchControls->Console()->ExecuteLine("echo Empty");
+		return;
+	}
+	Main = "echo ";
+	Main += m_Prefix.value_or("");
+	Main += m_pTouchControls->m_vCommandStack[m_Number][m_Order].m_Label;
+	Main += m_Suffix.value_or("");
+	m_pTouchControls->Console()->ExecuteLine(Main.c_str());
+}
+CTouchControls::CButtonLabel CTouchControls::CStackShowTouchButtonBehavior::GetLabel() const
+{
+	m_Tmp = "";
+	m_Tmp += m_Prefix.value_or("");
+	if(m_pTouchControls->m_vCommandStack[m_Number][m_Order].m_Label.length() > 15)
+		m_Tmp += m_pTouchControls->m_vCommandStack[m_Number][m_Order].m_Label.substr(0, 15);
+	else
+		m_Tmp += m_pTouchControls->m_vCommandStack[m_Number][m_Order].m_Label;
+	m_Tmp += m_Suffix.value_or("");
+	return {CButtonLabel::EType::ICON, m_Tmp.c_str()};
+}
+void CTouchControls::CStackShowTouchButtonBehavior::WriteToConfiguration(CJsonWriter *pWriter)
+{
+	pWriter->WriteAttribute("type");
+	pWriter->WriteStrValue(BEHAVIOR_TYPE);
+	
+	pWriter->WriteAttribute("number");
+	pWriter->WriteStrValue(m_Number.c_str());
+	
+	pWriter->WriteAttribute("order");
+	pWriter->WriteIntValue(m_Order);
+	
+	if(m_Prefix)
+	{
+		pWriter->WriteAttribute("prefix");
+		pWriter->WriteStrValue(m_Prefix.value().c_str());
+	}
+	
+	if(m_Suffix)
+	{
+		pWriter->WriteAttribute("suffix");
+		pWriter->WriteStrValue(m_Suffix.value().c_str());
+	}
+}
+
+
 void CTouchControls::OnInit()
 {
 	InitVisibilityFunctions();
@@ -729,8 +1720,7 @@ bool CTouchControls::OnTouchState(const std::vector<IInput::CTouchFingerState> &
 		GameClient()->m_GameConsole.IsActive() ||
 		GameClient()->m_Menus.IsActive() ||
 		GameClient()->m_Emoticon.IsActive() ||
-		GameClient()->m_Spectator.IsActive() ||
-		m_EditingActive)
+		GameClient()->m_Spectator.IsActive())
 	{
 		ResetButtons();
 		return false;
@@ -755,12 +1745,6 @@ void CTouchControls::OnRender()
 
 	const vec2 ScreenSize = CalculateScreenSize();
 	Graphics()->MapScreen(0.0f, 0.0f, ScreenSize.x, ScreenSize.y);
-	
-	if(m_EditingActive)
-	{
-	    RenderButtonEditor();
-	    return;
-	}
 
 	RenderButtons();
 }
@@ -837,26 +1821,6 @@ void CTouchControls::InitVisibilityFunctions()
 	m_aVisibilityFunctions[(int)EButtonVisibility::DEMO_PLAYER].m_pId = "demo-player";
 	m_aVisibilityFunctions[(int)EButtonVisibility::DEMO_PLAYER].m_Function = [&]() {
 		return Client()->State() == IClient::STATE_DEMOPLAYBACK;
-	};
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_1].m_pId = "extra-menu";
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_1].m_Function = [&]() {
-		return m_aExtraMenuActive[0];
-	};
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_2].m_pId = "extra-menu-2";
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_2].m_Function = [&]() {
-		return m_aExtraMenuActive[1];
-	};
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_3].m_pId = "extra-menu-3";
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_3].m_Function = [&]() {
-		return m_aExtraMenuActive[2];
-	};
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_4].m_pId = "extra-menu-4";
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_4].m_Function = [&]() {
-		return m_aExtraMenuActive[3];
-	};
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_5].m_pId = "extra-menu-5";
-	m_aVisibilityFunctions[(int)EButtonVisibility::EXTRA_MENU_5].m_Function = [&]() {
-		return m_aExtraMenuActive[4];
 	};
 }
 
@@ -970,8 +1934,15 @@ void CTouchControls::UpdateButtons(const std::vector<IInput::CTouchFingerState> 
 			continue;
 		}
 		const auto FingerInsideButton = std::find_if(vRemainingTouchFingerStates.begin(), vRemainingTouchFingerStates.end(), [&](const IInput::CTouchFingerState &TouchFingerState) {
+			const auto TriggerButton = std::find_if(m_vTouchButtons.begin(), m_vTouchButtons.end(), [&](const CTouchButton &Button) {
+					CBindSlideTouchButtonBehavior* pTmp = nullptr;
+					pTmp = dynamic_cast<CBindSlideTouchButtonBehavior*>(Button.m_pBehavior.get());
+					return Button.m_pBehavior->IsActive(TouchFingerState.m_Finger) &&
+					       pTmp;
+				});
 			return TouchButton.m_VisibilityStartTime < TouchFingerState.m_PressTime &&
-			       TouchButton.IsInside(TouchFingerState.m_Position * ScreenSize);
+			       TouchButton.IsInside(TouchFingerState.m_Position * ScreenSize) &&
+			       TriggerButton == m_vTouchButtons.end();
 		});
 		if(FingerInsideButton == vRemainingTouchFingerStates.end())
 		{
@@ -1100,9 +2071,7 @@ void CTouchControls::RenderButtons()
 	for(CTouchButton &TouchButton : m_vTouchButtons)
 	{
 		if(!TouchButton.IsVisible())
-		{
 			continue;
-		}
 		TouchButton.UpdateBackgroundCorners();
 		TouchButton.Render();
 	}
@@ -1345,9 +2314,11 @@ std::optional<CTouchControls::CTouchButton> CTouchControls::ParseButton(const js
 		return {};
 	}
 	std::vector<CButtonVisibility> vParsedVisibilities;
+	std::unordered_map<std::string, bool> vParsedMenus;
 	for(unsigned VisibilityIndex = 0; VisibilityIndex < Visibilities.u.array.length; ++VisibilityIndex)
 	{
 		const json_value &Visibility = Visibilities[VisibilityIndex];
+		
 		if(Visibility.type != json_string)
 		{
 			log_error("touch_controls", "Failed to parse touch button: attribute 'visibilities' does not specify string at index '%d'", VisibilityIndex);
@@ -1356,18 +2327,45 @@ std::optional<CTouchControls::CTouchButton> CTouchControls::ParseButton(const js
 		EButtonVisibility ParsedVisibility = EButtonVisibility::NUM_VISIBILITIES;
 		const bool ParsedParity = Visibility.u.string.ptr[0] != '-';
 		const char *pVisibilityString = ParsedParity ? Visibility.u.string.ptr : &Visibility.u.string.ptr[1];
-		for(int CurrentVisibility = (int)EButtonVisibility::INGAME; CurrentVisibility < (int)EButtonVisibility::NUM_VISIBILITIES; ++CurrentVisibility)
+		std::string VisibilityString(pVisibilityString);
+		
+		if(str_comp(pVisibilityString, "extra-menu") == 0)
 		{
-			if(str_comp(pVisibilityString, m_aVisibilityFunctions[CurrentVisibility].m_pId) == 0)
-			{
-				ParsedVisibility = (EButtonVisibility)CurrentVisibility;
-				break;
-			}
+			m_vMenuMap["1"] = false;
+			vParsedMenus["1"] = ParsedParity;
+			continue;
 		}
-		if(ParsedVisibility == EButtonVisibility::NUM_VISIBILITIES)
+		if(VisibilityString.compare(0, 11, "extra-menu-") == 0)
 		{
-			log_error("touch_controls", "Failed to parse touch button: attribute 'visibilities' specifies unknown value '%s' at index '%d'", pVisibilityString, VisibilityIndex);
-			return {};
+			std::string MenuString = VisibilityString.substr(11);
+			if(std::any_of(vParsedMenus.begin(), vParsedMenus.end(), [&](auto OtherMenu) {
+				return str_comp(OtherMenu.first.c_str(), MenuString.c_str()) == 0;
+			}))
+			{
+				log_error("touch_controls", "Failed to parse touch button: attribute 'visibilities' specifies duplicate value '%s' at '%d'", pVisibilityString, VisibilityIndex);
+				return {};
+			}
+			if(m_vMenuMap.find(MenuString) != m_vMenuMap.end())
+			m_vMenuMap[MenuString] = false;
+			vParsedMenus[MenuString] = ParsedParity;
+			
+			continue;
+		}
+		else
+		{
+			for(int CurrentVisibility = (int)EButtonVisibility::INGAME; CurrentVisibility < (int)EButtonVisibility::NUM_VISIBILITIES; ++CurrentVisibility)
+			{
+				if(str_comp(pVisibilityString, m_aVisibilityFunctions[CurrentVisibility].m_pId) == 0)
+				{
+					ParsedVisibility = (EButtonVisibility)CurrentVisibility;
+					break;
+				}
+			}
+			if(ParsedVisibility == EButtonVisibility::NUM_VISIBILITIES)
+			{
+				log_error("touch_controls", "Failed to parse touch button: attribute 'visibilities' specifies unknown value '%s' at index '%d'", pVisibilityString, VisibilityIndex);
+				return {};
+			}
 		}
 		const bool VisibilityAlreadyUsed = std::any_of(vParsedVisibilities.begin(), vParsedVisibilities.end(), [&](CButtonVisibility OtherParsedVisibility) {
 			return OtherParsedVisibility.m_Type == ParsedVisibility;
@@ -1391,6 +2389,7 @@ std::optional<CTouchControls::CTouchButton> CTouchControls::ParseButton(const js
 	Button.m_UnitRect = ParsedUnitRect;
 	Button.m_Shape = ParsedShape;
 	Button.m_vVisibilities = std::move(vParsedVisibilities);
+	Button.m_vMenus = std::move(vParsedMenus);
 	Button.m_pBehavior = std::move(pParsedBehavior);
 	return Button;
 }
@@ -1423,6 +2422,30 @@ std::unique_ptr<CTouchControls::CTouchButtonBehavior> CTouchControls::ParseBehav
 	{
 		return ParseBindToggleBehavior(&BehaviorObject);
 	}
+	else if(str_comp(BehaviorType.u.string.ptr, CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE) == 0)
+	{
+		return ParseBindSlideBehavior(&BehaviorObject);
+	}
+	else if(str_comp(BehaviorType.u.string.ptr, CBarTouchButtonBehavior::BEHAVIOR_TYPE) == 0)
+	{
+		return ParseBarBehavior(&BehaviorObject);
+	}
+	else if(str_comp(BehaviorType.u.string.ptr, CStackActTouchButtonBehavior::BEHAVIOR_TYPE) == 0)
+	{
+		return ParseStackActBehavior(&BehaviorObject);
+	}
+	else if(str_comp(BehaviorType.u.string.ptr, CStackAddTouchButtonBehavior::BEHAVIOR_TYPE) == 0)
+	{
+		return ParseStackAddBehavior(&BehaviorObject);
+	}
+	else if(str_comp(BehaviorType.u.string.ptr, CStackRemoveTouchButtonBehavior::BEHAVIOR_TYPE) == 0)
+	{
+		return ParseStackRemoveBehavior(&BehaviorObject);
+	}
+	else if(str_comp(BehaviorType.u.string.ptr, CStackShowTouchButtonBehavior::BEHAVIOR_TYPE) == 0)
+	{
+		return ParseStackShowBehavior(&BehaviorObject);
+	}
 	else
 	{
 		log_error("touch_controls", "Failed to parse touch button behavior: attribute 'type' specifies unknown value '%s'", BehaviorType.u.string.ptr);
@@ -1449,6 +2472,7 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 	static const CBehaviorFactory BEHAVIOR_FACTORIES[] = {
 		{CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }},
 		{CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&](const json_value *pBehavior) { return ParseExtraMenuBehavior(pBehavior); }},
+		{CCloseAllExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior){ return std::make_unique<CCloseAllExtraMenuTouchButtonBehavior>(); }},
 		{CEmoticonTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
 		{CSpectateTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
 		{CSwapActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
@@ -1471,18 +2495,64 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 
 std::unique_ptr<CTouchControls::CExtraMenuTouchButtonBehavior> CTouchControls::ParseExtraMenuBehavior(const json_value *pBehaviorObject)
 {
+	std::vector<std::string> ParsedMenuNumber;
+	bool Flag = false;
 	const json_value &BehaviorObject = *pBehaviorObject;
 	const json_value &MenuNumber = BehaviorObject["number"];
-	// TODO: Remove json_none backwards compatibility
-	const int MaxNumber = (int)EButtonVisibility::EXTRA_MENU_5 - (int)EButtonVisibility::EXTRA_MENU_1 + 1;
-	if(MenuNumber.type != json_none && (MenuNumber.type != json_integer || !in_range<json_int_t>(MenuNumber.u.integer, 1, MaxNumber)))
+	std::string TmpString;
+	m_vMenuMap["1"] = false;
+	if(MenuNumber.type == json_none)
 	{
-		log_error("touch_controls", "Failed to parse touch button behavior of type '%s' and ID '%s': attribute 'number' must specify an integer between '%d' and '%d'",
-			CPredefinedTouchButtonBehavior::BEHAVIOR_TYPE, CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, 1, MaxNumber);
+		ParsedMenuNumber.emplace_back("1");
+	}
+	else if(MenuNumber.type == json_integer)
+	{
+		TmpString = std::to_string(MenuNumber.u.integer);
+		ParsedMenuNumber.emplace_back(TmpString);
+		if(m_vMenuMap.find(TmpString) != m_vMenuMap.end())
+			m_vMenuMap[TmpString] = false;
+	}
+	else if(MenuNumber.type == json_string)
+	{
+		TmpString = MenuNumber.u.string.ptr;
+		ParsedMenuNumber.emplace_back(TmpString);
+		if(m_vMenuMap.find(TmpString) != m_vMenuMap.end())
+			m_vMenuMap[TmpString] = false;
+	}
+	else if(MenuNumber.type == json_array)
+		for(unsigned MenuIndex = 0; MenuIndex < MenuNumber.u.array.length; ++MenuIndex)
+		{
+			const json_value &Menu = MenuNumber[MenuIndex];
+			if(Menu.type == json_none)
+				ParsedMenuNumber.emplace_back("1");
+			else if(Menu.type == json_integer)
+			{
+				TmpString = std::to_string(MenuNumber.u.integer);
+				ParsedMenuNumber.emplace_back(TmpString);
+				if(m_vMenuMap.find(TmpString) != m_vMenuMap.end())
+					m_vMenuMap[TmpString] = false;
+			}
+			else if(Menu.type == json_string)
+			{
+				TmpString = Menu.u.string.ptr;
+				ParsedMenuNumber.emplace_back(TmpString);
+				if(m_vMenuMap.find(TmpString) != m_vMenuMap.end())
+					m_vMenuMap[TmpString] = false;
+			}
+			else
+			{
+				Flag = true;
+				break;
+			}
+		}
+	else
+		Flag = true;
+	if(Flag == true)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s' and ID '%s': attribute 'number' specify unknown type of values",
+			CPredefinedTouchButtonBehavior::BEHAVIOR_TYPE, CExtraMenuTouchButtonBehavior::BEHAVIOR_ID);
 		return nullptr;
 	}
-	int ParsedMenuNumber = MenuNumber.type == json_none ? 0 : (MenuNumber.u.integer - 1);
-
 	return std::make_unique<CExtraMenuTouchButtonBehavior>(ParsedMenuNumber);
 }
 
@@ -1507,15 +2577,12 @@ std::unique_ptr<CTouchControls::CBindTouchButtonBehavior> CTouchControls::ParseB
 	{
 		ParsedLabelType = CButtonLabel::EType::PLAIN;
 	}
-	else
+	else for(int CurrentType = (int)CButtonLabel::EType::PLAIN; CurrentType < (int)CButtonLabel::EType::NUM_TYPES; ++CurrentType)
 	{
-		for(int CurrentType = (int)CButtonLabel::EType::PLAIN; CurrentType < (int)CButtonLabel::EType::NUM_TYPES; ++CurrentType)
+		if(str_comp(LabelType.u.string.ptr, LABEL_TYPE_NAMES[CurrentType]) == 0)
 		{
-			if(str_comp(LabelType.u.string.ptr, LABEL_TYPE_NAMES[CurrentType]) == 0)
-			{
-				ParsedLabelType = (CButtonLabel::EType)CurrentType;
-				break;
-			}
+			ParsedLabelType = (CButtonLabel::EType)CurrentType;
+			break;
 		}
 	}
 	if(ParsedLabelType == CButtonLabel::EType::NUM_TYPES)
@@ -1562,25 +2629,18 @@ std::unique_ptr<CTouchControls::CBindToggleTouchButtonBehavior> CTouchControls::
 		}
 
 		const json_value &LabelType = CommandObject["label-type"];
-		if(LabelType.type != json_string && LabelType.type != json_none)
+		if(LabelType.type != json_string)
 		{
 			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'label-type' must specify a string", CBindToggleTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
 			return {};
 		}
 		CButtonLabel::EType ParsedLabelType = CButtonLabel::EType::NUM_TYPES;
-		if(LabelType.type == json_none)
+		for(int CurrentType = (int)CButtonLabel::EType::PLAIN; CurrentType < (int)CButtonLabel::EType::NUM_TYPES; ++CurrentType)
 		{
-			ParsedLabelType = CButtonLabel::EType::PLAIN;
-		}
-		else
-		{
-			for(int CurrentType = (int)CButtonLabel::EType::PLAIN; CurrentType < (int)CButtonLabel::EType::NUM_TYPES; ++CurrentType)
+			if(str_comp(LabelType.u.string.ptr, LABEL_TYPE_NAMES[CurrentType]) == 0)
 			{
-				if(str_comp(LabelType.u.string.ptr, LABEL_TYPE_NAMES[CurrentType]) == 0)
-				{
-					ParsedLabelType = (CButtonLabel::EType)CurrentType;
-					break;
-				}
+				ParsedLabelType = (CButtonLabel::EType)CurrentType;
+				break;
 			}
 		}
 		if(ParsedLabelType == CButtonLabel::EType::NUM_TYPES)
@@ -1598,6 +2658,436 @@ std::unique_ptr<CTouchControls::CBindToggleTouchButtonBehavior> CTouchControls::
 		vCommands.emplace_back(Label.u.string.ptr, ParsedLabelType, Command.u.string.ptr);
 	}
 	return std::make_unique<CBindToggleTouchButtonBehavior>(std::move(vCommands));
+}
+
+std::unique_ptr<CTouchControls::CBindSlideTouchButtonBehavior> CTouchControls::ParseBindSlideBehavior(const json_value *pBehaviorObject)
+{
+	const json_value &CommandsObject = (*pBehaviorObject)["commands"];
+	bool flag = false;
+	if(CommandsObject.type != json_array)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'commands' must specify an array", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+
+	std::vector<CTouchControls::CBindSlideTouchButtonBehavior::CDirCommand> vCommands;
+	vCommands.reserve(CommandsObject.u.array.length);
+	for(unsigned CommandIndex = 0; CommandIndex < CommandsObject.u.array.length; ++CommandIndex)
+	{
+		const json_value &CommandObject = CommandsObject[CommandIndex];
+		if(CommandObject.type != json_object)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'commands' must specify an array of objects", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return nullptr;
+		}
+
+		const json_value &Label = CommandObject["label"];
+		if(Label.type != json_string)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'label' must specify a string", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return nullptr;
+		}
+
+		const json_value &LabelType = CommandObject["label-type"];
+		if(LabelType.type != json_string)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'label-type' must specify a string", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return {};
+		}
+		const json_value &Direction = CommandObject["direction"];
+		if(Direction.type != json_string)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'direction' must specify a string", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return nullptr;
+		}
+		CButtonLabel::EType ParsedLabelType = CButtonLabel::EType::NUM_TYPES;
+		for(int CurrentType = (int)CButtonLabel::EType::PLAIN; CurrentType < (int)CButtonLabel::EType::NUM_TYPES; ++CurrentType)
+		{
+			if(str_comp(LabelType.u.string.ptr, LABEL_TYPE_NAMES[CurrentType]) == 0)
+			{
+				ParsedLabelType = (CButtonLabel::EType)CurrentType;
+				break;
+			}
+		}
+		if(ParsedLabelType == CButtonLabel::EType::NUM_TYPES)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'label-type' specifies unknown value '%s'", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex, LabelType.u.string.ptr);
+			return {};
+		}
+		CBindSlideTouchButtonBehavior::EDirection ParsedDirection = CBindSlideTouchButtonBehavior::EDirection::NUM_DIRECTIONS;
+		for(int CurrentDir = (int)CBindSlideTouchButtonBehavior::EDirection::LEFT; CurrentDir < (int)CBindSlideTouchButtonBehavior::EDirection::NUM_DIRECTIONS; ++CurrentDir)
+		{
+			if(str_comp(Direction.u.string.ptr, DIRECTION_NAMES[CurrentDir]) == 0)
+			{
+				ParsedDirection = (CBindSlideTouchButtonBehavior::EDirection)CurrentDir;
+				if(str_comp(Direction.u.string.ptr, DIRECTION_NAMES[8]) == 0)
+					flag = true;
+				break;
+			}
+		}
+		if(ParsedDirection == CBindSlideTouchButtonBehavior::EDirection::NUM_DIRECTIONS)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'direction' specifies unknown value '%s'", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex, Direction.u.string.ptr);
+			return {};
+		}
+
+		const json_value &Command = CommandObject["command"];
+		if(Command.type != json_string)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'command' must specify a string", CBindSlideTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return nullptr;
+		}
+		vCommands.emplace_back(Label.u.string.ptr, ParsedLabelType, ParsedDirection, Command.u.string.ptr);
+	}
+	if(!flag)
+	{
+		log_error("touch_controls", "Center is missing");
+		return nullptr;
+	}
+	return std::make_unique<CBindSlideTouchButtonBehavior>(std::move(vCommands));
+}
+
+std::unique_ptr<CTouchControls::CBarTouchButtonBehavior> CTouchControls::ParseBarBehavior(const json_value *pBehaviorObject)
+{
+	const json_value &BehaviorObject = *pBehaviorObject;
+	const json_value &Label = BehaviorObject["label"];
+	if(Label.type != json_string)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'label' must specify a string", CBarTouchButtonBehavior::BEHAVIOR_TYPE);
+		return nullptr;
+	}
+
+	const json_value &Min = BehaviorObject["min"];
+	if(Min.type != json_integer)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'min' must specify an integer", CBarTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	const json_value &Max = BehaviorObject["max"];
+	if(Max.type != json_integer)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'max' must specify an integer", CBarTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+
+	const json_value &Target = BehaviorObject["target"];
+	if(Target.type != json_string)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'target' must specify a string", CBarTouchButtonBehavior::BEHAVIOR_TYPE);
+		return nullptr;
+	}
+
+	SuperMap::Init();
+	auto Find = SuperMap::Map.find(Target.u.string.ptr);
+	if(Find == SuperMap::Map.end())
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'target' specify an unknown string", CBarTouchButtonBehavior::BEHAVIOR_TYPE);
+		return nullptr;
+	}
+	return std::make_unique<CBarTouchButtonBehavior>(Label.u.string.ptr, Min.u.integer, Max.u.integer, Find->second, Find->first);
+}
+
+std::unique_ptr<CTouchControls::CStackActTouchButtonBehavior> CTouchControls::ParseStackActBehavior(const json_value *pBehaviorObject)
+{
+	const json_value &BehaviorObject = *pBehaviorObject;
+	const json_value &Number = BehaviorObject["number"];
+	std::string ParsedNumber;
+	if(Number.type == json_integer)
+	{
+		ParsedNumber = std::to_string(Number.u.integer);
+	}
+	else if(Number.type == json_none)
+	{
+		ParsedNumber = "";
+	}
+	else if(Number.type == json_string)
+	{
+		ParsedNumber = Number.u.string.ptr;
+	}
+	else
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'number' specify an unknown type value", CStackActTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	if(m_vCommandStack.find(ParsedNumber) != m_vCommandStack.end())
+	{
+		m_vCommandStack[ParsedNumber];
+	}
+	return std::make_unique<CStackActTouchButtonBehavior>(ParsedNumber);
+}
+
+std::unique_ptr<CTouchControls::CStackAddTouchButtonBehavior> CTouchControls::ParseStackAddBehavior(const json_value *pBehaviorObject)
+{
+	const json_value &BehaviorObject = *pBehaviorObject;
+	const json_value &Number = BehaviorObject["number"];
+	std::string ParsedNumber;
+	if(Number.type == json_integer)
+	{
+		ParsedNumber = std::to_string(Number.u.integer);
+	}
+	else if(Number.type == json_none)
+	{
+		ParsedNumber = "";
+	}
+	else if(Number.type == json_string)
+	{
+		ParsedNumber = Number.u.string.ptr;
+	}
+	else
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'number' specify an unknown type value", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	if(m_vCommandStack.find(ParsedNumber) != m_vCommandStack.end())
+	{
+		m_vCommandStack[ParsedNumber];
+	}
+	const json_value &Label = BehaviorObject["label"];
+	if(Label.type != json_string)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'label' must specify a string", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	
+	const json_value &LabelType = BehaviorObject["label-type"];
+	if(LabelType.type != json_string && LabelType.type != json_none)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'label-type' must specify a string", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	CButtonLabel::EType ParsedLabelType = CButtonLabel::EType::NUM_TYPES;
+	if(LabelType.type == json_none)
+	{
+		ParsedLabelType = CButtonLabel::EType::PLAIN;
+	}
+	else for(int CurrentType = (int)CButtonLabel::EType::PLAIN; CurrentType < (int)CButtonLabel::EType::NUM_TYPES; ++CurrentType)
+	{
+		if(str_comp(LabelType.u.string.ptr, LABEL_TYPE_NAMES[CurrentType]) == 0)
+		{
+			ParsedLabelType = (CButtonLabel::EType)CurrentType;
+			break;
+		}
+	}
+	if(ParsedLabelType == CButtonLabel::EType::NUM_TYPES)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'label-type' specifies unknown value '%s'", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE, LabelType.u.string.ptr);
+		return {};
+	}
+	std::vector<CTouchControls::CStackAddTouchButtonBehavior::CCommand> vCommands;
+	const json_value &CommandsObject = BehaviorObject["commands"];
+	if(CommandsObject.type != json_array)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'commands' must specify an array", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	vCommands.reserve(CommandsObject.u.array.length);
+	for(unsigned CommandIndex = 0; CommandIndex < CommandsObject.u.array.length; ++CommandIndex)
+	{
+		const json_value &CommandObject = CommandsObject[CommandIndex];
+		if(CommandObject.type != json_object)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'commands' must specify an array of objects", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return nullptr;
+		}
+
+		const json_value &CommandLabel = CommandObject["label"];
+		if(CommandLabel.type != json_string)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'label' must specify a string", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return nullptr;
+		}
+		
+		const json_value &CommandLabelType = CommandObject["label-type"];
+		CButtonLabel::EType ParsedCommandLabelType = CButtonLabel::EType::NUM_TYPES;
+		if(CommandLabelType.type == json_none)
+		{
+			ParsedCommandLabelType = CButtonLabel::EType::PLAIN;
+		}
+		else if(CommandLabelType.type == json_string)
+		{
+			for(int CurrentType = (int)CButtonLabel::EType::PLAIN; CurrentType < (int)CButtonLabel::EType::NUM_TYPES; ++CurrentType)
+				if(str_comp(CommandLabelType.u.string.ptr, LABEL_TYPE_NAMES[CurrentType]) == 0)
+				{
+					ParsedLabelType = (CButtonLabel::EType)CurrentType;
+					break;
+				}
+			if(ParsedLabelType == CButtonLabel::EType::NUM_TYPES)
+			{
+				log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'label-type' specifies unknown value '%s'", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex, LabelType.u.string.ptr);
+				return {};
+			}
+		}
+		else
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'label-type' must specify a string", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return {};
+		}
+		const json_value &Command = CommandObject["command"];
+		if(Command.type != json_string)
+		{
+			log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d': attribute 'command' must specify a string", CStackAddTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+			return {};
+		}
+		vCommands.emplace_back(CommandLabel.u.string.ptr, ParsedCommandLabelType, Command.u.string.ptr);
+	}
+	return std::make_unique<CStackAddTouchButtonBehavior>(ParsedNumber, Label.u.string.ptr, ParsedLabelType, std::move(vCommands));
+}
+
+std::unique_ptr<CTouchControls::CStackRemoveTouchButtonBehavior> CTouchControls::ParseStackRemoveBehavior(const json_value *pBehaviorObject)
+{
+	const json_value &BehaviorObject = *pBehaviorObject;
+	const json_value &Number = BehaviorObject["number"];
+	std::string ParsedNumber;
+	if(Number.type == json_integer)
+	{
+		ParsedNumber = std::to_string(Number.u.integer);
+	}
+	else if(Number.type == json_none)
+	{
+		ParsedNumber = "";
+	}
+	else if(Number.type == json_string)
+	{
+		ParsedNumber = Number.u.string.ptr;
+	}
+	else
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'number' specify an unknown type value", CStackRemoveTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	if(m_vCommandStack.find(ParsedNumber) != m_vCommandStack.end())
+	{
+		m_vCommandStack[ParsedNumber];
+	}
+	const json_value &Orders = BehaviorObject["order"];
+	std::vector<int> vParsedOrders;
+	if(Orders.type == json_integer)
+	{
+		int Check = (Orders.u.integer <= 0) ? -1 : Orders.u.integer;
+		vParsedOrders.emplace_back(Check);
+	}
+	else if(Orders.type == json_array)
+	{
+		vParsedOrders.reserve(Orders.u.array.length);
+		for(unsigned CommandIndex = 0; CommandIndex < Orders.u.array.length; ++CommandIndex)
+		{
+			const json_value &Order = Orders[CommandIndex];
+			if(Order.type != json_integer)
+			{
+				log_error("touch_controls", "Failed to parse touch button behavior of type '%s': failed to parse command at index '%d' attribute 'order' specify an unknown type value. Only integers are allowed in this array", CStackRemoveTouchButtonBehavior::BEHAVIOR_TYPE, CommandIndex);
+				return {};
+			}
+			else if(Order.u.integer <= 0)
+			{
+				vParsedOrders.clear();
+				vParsedOrders.reserve(1);
+				vParsedOrders.emplace_back(-1);
+				break;
+			}
+			else
+			{
+				bool CheckIfRepeat = std::any_of(vParsedOrders.begin(), vParsedOrders.end(), [Order](const int& Element){
+					return Order.u.integer == Element;
+				});
+				if(CheckIfRepeat)
+					continue;
+				vParsedOrders.emplace_back(Order.u.integer);
+			}
+		}
+	}
+	else
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'order' specify an unknown type value", CStackRemoveTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	std::string ParsedLabel;
+	char aBuf[256];
+	std::string bBuf = "";
+	if(vParsedOrders[0] == -1)
+	{
+		ParsedLabel = "\xEF\x81\x97" "All";
+	}
+	else
+	{
+		std::sort(vParsedOrders.begin(), vParsedOrders.end(), [](int ElementA, int ElementB){
+			return ElementA > ElementB;
+		});
+		if(vParsedOrders.size() > 5)
+			ParsedLabel = "\xEF\x81\x97...";
+		else
+		{
+			for(int Index = vParsedOrders.size() - 1; Index >= 0; Index --)
+			{
+				str_format(aBuf, sizeof(aBuf), "%d %s", vParsedOrders[Index], bBuf.c_str());
+				bBuf = aBuf;
+			}
+			str_format(aBuf, sizeof(aBuf), "\xEF\x81\x97 %s", bBuf.c_str());
+			ParsedLabel = aBuf;
+		}
+	}
+	
+	return std::make_unique<CStackRemoveTouchButtonBehavior>(ParsedNumber, std::move(vParsedOrders), ParsedLabel);
+}
+
+std::unique_ptr<CTouchControls::CStackShowTouchButtonBehavior> CTouchControls::ParseStackShowBehavior(const json_value *pBehaviorObject)
+{
+	const json_value &BehaviorObject = *pBehaviorObject;
+	const json_value &Number = BehaviorObject["number"];
+	std::string ParsedNumber;
+	if(Number.type == json_integer)
+	{
+		ParsedNumber = std::to_string(Number.u.integer);
+	}
+	else if(Number.type == json_none)
+	{
+		ParsedNumber = "";
+	}
+	else if(Number.type == json_string)
+	{
+		ParsedNumber = Number.u.string.ptr;
+	}
+	else
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'number' specify an unknown type value", CStackShowTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	if(m_vCommandStack.find(ParsedNumber) != m_vCommandStack.end())
+	{
+		m_vCommandStack[ParsedNumber];
+	}
+	
+	const json_value &Order = BehaviorObject["order"];
+	if(Order.type != json_integer)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'order' must specify an integer", CStackShowTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	
+	const json_value &Prefix = BehaviorObject["prefix"];
+	std::optional<std::string> ParsedPrefix;
+	if(Prefix.type == json_string)
+	{
+		ParsedPrefix.emplace(Prefix.u.string.ptr);
+	}
+	else if(Prefix.type != json_none)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'prefix' must specify a string", CStackShowTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	
+	const json_value &Suffix = BehaviorObject["suffix"];
+	std::optional<std::string> ParsedSuffix;
+	if(Suffix.type == json_string)
+	{
+		ParsedSuffix.emplace(Suffix.u.string.ptr);
+	}
+	else if(Suffix.type != json_none)
+	{
+		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'suffix' must specify a string", CStackShowTouchButtonBehavior::BEHAVIOR_TYPE);
+		return {};
+	}
+	
+	return std::make_unique<CStackShowTouchButtonBehavior>(ParsedNumber, Order, ParsedPrefix, ParsedSuffix);
 }
 
 void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
@@ -1628,376 +3118,4 @@ void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
 	pWriter->EndArray();
 
 	pWriter->EndObject();
-}
-
-CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects)
-{
-	if(vCheckedRects.size() == 0)
-		vCheckedRects.resize(vVisibleButtonRects.size(), false);
-	bool OverlappedTwice = false;
-	int Iterator = -1;
-	//Border issue.
-	if(MyRect.m_X < 0)
-		MyRect.m_X = 0;
-	if(MyRect.m_Y < 0)
-		MyRect.m_Y = 0;
-	if(MyRect.m_X + MyRect.m_W > 1000000)
-		MyRect.m_X = 1000000 - MyRect.m_W;
-	if(MyRect.m_Y + MyRect.m_H > 1000000)
-		MyRect.m_Y = 1000000 - MyRect.m_H;
-	//Find the first overlapped rect, which hasn't been overlapped before. If overlapped twice, this way is blocked.
-	const auto &MainOverlappedRect = [&](){
-		return std::find_if(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&](const auto &OtherRect){
-				Iterator ++;
-				bool CheckOverlap = !(MyRect.m_X + MyRect.m_W <= OtherRect.m_X || OtherRect.m_X + OtherRect.m_W <= MyRect.m_X || MyRect.m_Y + MyRect.m_H <= OtherRect.m_Y || OtherRect.m_Y + OtherRect.m_H <= MyRect.m_Y);
-				if(CheckOverlap && vCheckedRects[Iterator])
-				{
-					OverlappedTwice = true;
-					return false;
-				}
-				else
-					return CheckOverlap;
-			});
-	}();
-	if(MainOverlappedRect == vVisibleButtonRects.end())
-	{
-		if(OverlappedTwice)
-		{
-			return {-1, -1, -1, -1};
-		}
-		else
-		{
-			return MyRect;
-		}
-	}
-	vCheckedRects[std::distance(vVisibleButtonRects.begin(), MainOverlappedRect)] = true;
-	double MinDistance = 100000000.0f;
-	CTouchControls::CUnitRect MinRect = {-1, -1, -1, -1};
-	
-	for(int Direction = 0; Direction < 4; Direction++)
-	{
-		CTouchControls::CUnitRect TmpRect = MyRect;
-		//RIGHT
-		if(Direction == 0)
-		{
-			TmpRect.m_X = (*MainOverlappedRect).m_X + (*MainOverlappedRect).m_W;
-			if(TmpRect.m_X + TmpRect.m_W > 1000000)
-				continue;
-		}
-		//BELOW
-		if(Direction == 1)
-		{
-			TmpRect.m_Y = (*MainOverlappedRect).m_Y + (*MainOverlappedRect).m_H;
-			if(TmpRect.m_Y + TmpRect.m_H > 1000000)
-				continue;
-		}
-		//LEFT
-		if(Direction == 2)
-		{
-			TmpRect.m_X = (*MainOverlappedRect).m_X - TmpRect.m_W;
-			if(TmpRect.m_X < 0)
-				continue;
-		}
-		//UP
-		if(Direction == 3)
-		{
-			TmpRect.m_Y = (*MainOverlappedRect).m_Y - TmpRect.m_H;
-			if(TmpRect.m_Y < 0)
-				continue;
-		}
-		TmpRect = FindPositionXY(vVisibleButtonRects, TmpRect, vCheckedRects);
-		if(TmpRect.m_X != -1 && MinDistance > TmpRect / MyRect)
-		{
-			MinDistance = TmpRect / MyRect;
-			MinRect = TmpRect;
-		}
-	}
-	return MinRect;
-}
-
-void CTouchControls::RenderButtonEditor()
-{
-	std::vector<IInput::CTouchFingerState> vTouchFingerStates = m_pClient->Input()->TouchFingerStates();
-	const vec2 ScreenSize = GameClient()->m_TouchControls.CalculateScreenSize();
-	static std::vector<bool> vVisibilities((int)EButtonVisibility::NUM_VISIBILITIES, false);
-	static std::optional<IInput::CTouchFingerState> ActiveFingerState;
-	static std::optional<IInput::CTouchFingerState> ZoomFingerState;
-	static vec2 ZoomStartPos = {0.0f, 0.0f};
-	static bool FirstOpen = true;
-	static bool LongPress = false;
-	static vec2 AccumulatedDelta = {0.0f, 0.0f};
-	static std::optional<IInput::CTouchFingerState*> pLongPressFingerState;
-	static CUnitRect ShownRect;
-	static std::set<IInput::CTouchFingerState> DeletedFingerState;
-    char EditX[16], EditY[16], EditW[16], EditH[16];
-    static std::string SavedX = "0", SavedY = "0", SavedW = "50000", SavedH = "50000";
-	static CLineInput InputX(EditX, sizeof(EditX), 6),
-	                  InputY(EditY, sizeof(EditY), 6),
-	                  InputW(EditW, sizeof(EditW), 6),
-	                  InputH(EditH, sizeof(EditH), 6);
-	std::set<CUnitRect> vVisibleButtonRects;
-	if(FirstOpen)
-	{
-		vVisibilities[(int)EButtonVisibility::INGAME] = true;
-		vVisibilities[(int)EButtonVisibility::ZOOM_ALLOWED] = true;
-		vVisibilities[(int)EButtonVisibility::DUMMY_ALLOWED] = true;
-		FirstOpen = false;
-	}
-
-	//Remove if the finger deleted has released. Though o(n*n), how many fingers do you expect to press down at the same time?
-	if(DeletedFingerState.size() != 0)
-		std::remove_if(DeletedFingerState.begin(), DeletedFingerState.end(), [&vTouchFingerStates](const auto &State){
-			return std::find_if(vTouchFingerStates.begin(), vTouchFingerStates.end(), [&State](const auto &TargetState){
-				return TargetState.m_Finger == State.m_Finger;
-			}) == vTouchFingerStates.end();
-		});
-	//Delete fingers if they are press later. So they cant be the longpress finger.
-	if(vTouchFingerStates.size() > 1)
-		std::for_each(vTouchFingerStates.begin() + 1, vTouchFingerStates.end(), [&DeletedFingerState](const auto &State){
-			DeletedFingerState.insert(State);
-		});
-
-	//If released, and there is finger on screen, and the "first finger" is not deleted(new finger), then it can be LongPress.
-	if(vTouchFingerStates.size() != 0 && !std::any_of(DeletedFingerState.begin(), DeletedFingerState.end(), [&vTouchFingerStates](const auto &State){
-		return vTouchFingerStates[0].m_finger == State.m_Finger;
-	}))
-	{
-		if(!pLongPressFingerState.has_value())
-			pLongPressFingerState = &vTouchFingerStates[0];
-		else if((*pLongPressFingerState)->m_Finger != vTouchFingerStates[0].m_Finger)
-		{
-			pLongPressFingerState = &vTouchFingerStates[0];
-			AccumulatedDelta = {0.0f, 0.0f};
-		}
-	}
-		
-		
-	//Find long press button. LongPress == true means the first fingerstate long pressed.
-	if(pLongPressFingerState.has_value())
-	{
-    	AccumulatedDelta += (*pLongPressFingerState)->m_Delta;
-		//If slided, then delete.
-    	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.07)
-    	{
-    		AccumulatedDelta = {0.0f, 0.0f};
-			DeletedFingerState.insert(*pLongPressFingerState.value());
-    		pLongPressFingerState = std::nullopt;
-    	}
-		//till now, this else contains: if the finger hasn't slided, have no fingers that remain pressed down when it pressed, hasn't been a longpress already. 
-    	else
-    	{
-    		const auto Now = time_get_nanoseconds();
-    		if(Now - (*pLongPressFingerState)->m_PressTime > 400ms)
-    		{
-				LongPress = true;
-				DeletedFingerState.insert(*pLongPressFingerState.value());
-			}
-    	}
-	}
-	
-	//Update active and zoom fingerstate. The first finger will be used for moving button.
-	if(vTouchFingerStates.size() > 0)
-		ActiveFingerState = vTouchFingerStates[0];
-	else
-		ActiveFingerState = std::nullopt;
-	//Only the second finger will be used for zooming button.
-	if(vTouchFingerStates.size() > 1)
-	{
-		//If zoom finger is pressed now, reset the zoom startpos
-		if(!ZoomFingerState.has_value())
-			ZoomStartPos = ActiveFingerState.value().m_Position - vTouchFingerStates[1].m_Position;
-		ZoomFingerState = vTouchFingerStates[1];
-	}
-	else
-	{
-		ZoomFingerState = std::nullopt;
-		ZoomStartPos = {0.0f, 0.0f};
-	}
-	
-	//vVisibilities should be set manually(by user), a default value is given. Only used in the editor to decide if a button is visible.
-	for(auto &TouchButton : m_vTouchButtons)
-	{
-		bool IsVisible = std::all_of(TouchButton.m_vVisibilities.begin(), TouchButton.m_vVisibilities.end(), [&](const auto &Visibility){
-			return Visibility.m_Parity == vVisibilities[(int)Visibility.m_Type];
-		});
-		if(IsVisible)
-		{
-			//Only Long Pressed finger "in visible button" is used for selecting a button.
-			//If Selected Button LongPressed, open setting menus.
-			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*pLongPressFingerState)->m_Position * ScreenSize))
-			{
-				if(SelectedButton != nullptr || SelectedButton != &TouchButton)
-				{
-					SelectedButton = &TouchButton;
-					ActiveFingerState = *(pLongPressFingerState.value());
-				}
-				//LongPress used.
-				pLongPressFingerState = std::nullopt;
-				LongPress = false;
-				//Don't render the selected button. It's place should change and there should be extra UI.
-				continue;
-			}
-			//Render visible but not selected buttons.
-			TouchButton.UpdateBackgroundCorners();
-			TouchButton.Render(); 
-			vVisibleButtonRects.insert(TouchButton.m_UnitRect);
-		}
-		else if(SelectedButton == &TouchButton)
-		{
-			SelectedButton = nullptr;
-		}
-	}
-	//If LongPress == true, LongPress finger has to be outside of visible buttons
-	if(LongPress)
-	{
-		if(SelectedButton != nullptr)
-		    SelectedButton->Render();
-		SelectedButton = nullptr;
-		LongPress = false;
-		pLongPressFingerState = std::nullopt;
-	}
-	
-	if(SelectedButton != nullptr)
-	{
-		if(ActiveFingerState.has_value() && ZoomFingerState == std::nullopt)
-		{
-			vec2 UnitXYDelta = ActiveFingerState->m_Delta * 1000000;
-			SelectedButton->m_UnitRect.m_X += UnitXYDelta.x;
-			SelectedButton->m_UnitRect.m_Y += UnitXYDelta.y;
-			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
-		}
-		if(ActiveFingerState.has_value() && ZoomFingerState.has_value())
-		{
-			vec2 UnitWHDelta;
-			UnitWHDelta.x = (std::abs(ActiveFingerState.value().m_Position.x - ZoomFingerState.value().m_Position.x) - std::abs(ZoomStartPos.x)) * 1000000;
-			UnitWHDelta.y = (std::abs(ActiveFingerState.value().m_Position.y - ZoomFingerState.value().m_Position.y) - std::abs(ZoomStartPos.y)) * 1000000;
-			SelectedButton->m_UnitRect.m_W += UnitWHDelta.x;
-			SelectedButton->m_UnitRect.m_H += UnitWHDelta.y;
-			SelectedButton->m_UnitRect.m_W = clamp(SelectedButton->m_UnitRect.m_W, 50000, 500000);
-			SelectedButton->m_UnitRect.m_H = clamp(SelectedButton->m_UnitRect.m_H, 50000, 500000);
-			if(SelectedButton->m_UnitRect.m_W + SelectedButton->m_UnitRect.m_X > 1000000)
-			    SelectedButton->m_UnitRect.m_W -= 1000000 - SelectedButton->m_UnitRect.m_X;
-			if(SelectedButton->m_UnitRect.m_H + SelectedButton->m_UnitRect.m_Y > 1000000)
-			    SelectedButton->m_UnitRect.m_H -= 1000000 - SelectedButton->m_UnitRect.m_Y;
-			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
-			for(const auto &Rect : vVisibleButtonRects)
-			{
-			    if(!(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W <= Rect.m_X || Rect.m_X + Rect.m_W <= SelectedButton->m_UnitRect.m_X || SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H <= Rect.m_Y || Rect.m_Y + Rect.m_H <= SelectedButton->m_UnitRect.m_Y))
-			    {
-			        if(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W > Rect.m_X)
-			            SelectedButton->m_UnitRect.m_W = Rect.m_X - SelectedButton->m_UnitRect.m_X;
-			        else if(SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H > Rect.m_Y)
-			            SelectedButton->m_UnitRect.m_H = Rect.m_Y - SelectedButton->m_UnitRect.m_Y;
-			    }
-			}
-			ShownRect = SelectedButton->m_UnitRect;
-		}
-		//Finished moving, no finger on screen.
-		if(vTouchFingerStates.size() == 0)
-		{
-			AccumulatedDelta = {0.0f, 0.0f};
-			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
-			SelectedButton->m_UnitRect = ShownRect;
-		}
-	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
-	    TmpButton->m_UnitRect = ShownRect;
-	    TmpButton->m_Shape = SelectedButton->m_Shape;
-	    TmpButton->m_vVisibilities = SelectedButton->m_vVisibilities;
-	    TmpButton->m_pBehavior = std::move(SelectedButton->m_pBehavior);
-	    TmpButton->UpdateScreenFromUnitRect();
-	    TmpButton->Render();
-	    SelectedButton->m_pBehavior = std::move(TmpButton->m_pBehavior);
-	}
-	
-	/*if(IfCallSettings)
-	{
-	    CUIRect Screen = *(GameClient()->m_TouchControls.Ui()->Screen());
-	    CUIRect Left, Right;
-	    Screen.Margin(50.0f, &Screen);
-	    Screen.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f), IGraphics::CORNER_ALL, 5.0f);
-	    Screen.VSplitLeft(Screen.w / 2, &Left, &Right);
-	    Left.Margin(30.0f, &Left);
-	    Right.Margin(30.0, &Right);
-	    CUIRect EditBox;
-	    Left.HSplitTop(15.0, &EditBox, &Left);
-	    if(Ui()->DoClearableEditBox(&InputX, &EditBox, 10.0f))
-	    {
-	        std::string TpString = "";
-	        for(int Check = 0; EditX[Check] != '\0' && Check < 6; Check ++)
-	            if('0' <= EditX[Check] && EditX[Check] <= '9')
-	                TpString += EditX[Check];
-	            else
-	            {
-	                str_copy(EditX, SavedX.c_str());
-	                TpString = SavedX;
-	                break;
-	            }
-	        if(std::stoi(TpString) + std::stoi(SavedW) > 1000000)
-	            SavedX = std::to_string(1000000 - std::stoi(SavedW));
-	        else
-	            SavedX = TpString;
-	        str_copy(EditX, SavedX.c_str());
-	    }
-	    Right.HSplitTop(15.0, &EditBox, &Right);
-	    if(Ui()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
-	    {
-	        std::string TpString = "";
-	        for(int Check = 0; EditY[Check] != '\0' && Check < 6; Check ++)
-	            if('0' <= EditY[Check] && EditY[Check] <= '9')
-	                TpString += EditY[Check];
-	            else
-	            {
-	                str_copy(EditY, SavedY.c_str());
-	                TpString = SavedY;
-	                break;
-	            }
-	        if(std::stoi(TpString) + std::stoi(SavedH) > 1000000)
-	            SavedY = std::to_string(1000000 - std::stoi(SavedH));
-	        else
-	            SavedY = TpString;
-	        str_copy(EditY, SavedY.c_str());
-	    }
-	    Left.HSplitTop(15.0, &EditBox, &Left);
-	    if(Ui()->DoClearableEditBox(&InputW, &EditBox, 10.0f))
-	    {
-	        std::string TpString = "";
-	        for(int Check = 0; EditW[Check] != '\0' && Check < 6; Check ++)
-	            if('0' <= EditW[Check] && EditW[Check] <= '9')
-	                TpString += EditW[Check];
-	            else
-	            {
-	                str_copy(EditW, SavedW.c_str());
-	                TpString = SavedW;
-	                break;
-	            }
-	        if(std::stoi(TpString) + std::stoi(SavedX) > 1000000)
-	            SavedW = std::to_string(1000000 - std::stoi(SavedX));
-	        else if(std::stoi(SavedW) < 50000)
-	            SavedW = std::to_string(50000);
-	        else
-	            SavedW = TpString;
-	        str_copy(EditW, SavedW.c_str());
-	    }
-	    Right.HSplitTop(15.0, &EditBox, &Right);
-	    if(Ui()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
-	    {
-	        std::string TpString = "";
-	        for(int Check = 0; EditH[Check] != '\0' && Check < 6; Check ++)
-	            if('0' <= EditH[Check] && EditH[Check] <= '9')
-	                TpString += EditH[Check];
-	            else
-	            {
-	                str_copy(EditH, SavedH.c_str());
-	                TpString = SavedH;
-	                break;
-	            }
-	        if(std::stoi(TpString) + std::stoi(SavedH) > 1000000)
-	            SavedH = std::to_string(1000000 - std::stoi(SavedY));
-	        else if(std::stoi(SavedH) < 50000)
-	            SavedH = std::to_string(50000);
-	        else
-	            SavedH = TpString;
-	        str_copy(EditH, SavedH.c_str());
-	    }
-	}*/
 }
