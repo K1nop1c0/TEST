@@ -1768,14 +1768,11 @@ void CTouchControls::RenderButtonEditor()
 		return vTouchFingerStates[0].m_Finger == State.m_Finger;
 	}))
 	{
-		//No value, then give it. Has value, then update it, and reset the accumulated delta.
-		if(!LongPressFingerState.has_value())
-			LongPressFingerState = vTouchFingerStates[0];
-		else if((*LongPressFingerState).m_Finger != vTouchFingerStates[0].m_Finger)
-		{
-			LongPressFingerState = vTouchFingerStates[0];
+		//If has different finger, reset the accumulated delta.
+		if(LongPressFingerState.has_value() && (*LongPressFingerState).m_Finger != vTouchFingerStates[0].m_Finger)
 			AccumulatedDelta = {0.0f, 0.0f};
-		}
+		//Update the LongPress candidate state.
+		LongPressFingerState = vTouchFingerStates[0];
 	}
 		
 		
@@ -1829,7 +1826,8 @@ void CTouchControls::RenderButtonEditor()
 		ZoomStartPos = {0.0f, 0.0f};
 		if(SelectedButton != nullptr)
 		{
-			SelectedButton->m_UnitRect = ShownRect;
+			SelectedButton->m_UnitRect.m_W = ShownRect.m_W;
+			SelectedButton->m_UnitRect.m_H = ShownRect.m_H;
 			SelectedButton->UpdateScreenFromUnitRect();
 		}
 	}
@@ -1859,7 +1857,6 @@ void CTouchControls::RenderButtonEditor()
 			if(SelectedButton == &TouchButton)
 				continue;
 			//Render visible but not selected buttons.
-			TouchButton.UpdateBackgroundCorners();
 			TouchButton.Render(); 
 			vVisibleButtonRects.insert(TouchButton.m_UnitRect);
 		}
@@ -1868,7 +1865,7 @@ void CTouchControls::RenderButtonEditor()
 			SelectedButton = nullptr;
 		}
 	}
-	//If LongPress == true, LongPress finger has to be outside of visible buttons
+	//If LongPress == true, LongPress finger has to be outside of all visible buttons.
 	if(LongPress)
 	{
 		if(SelectedButton != nullptr)
@@ -1902,16 +1899,17 @@ void CTouchControls::RenderButtonEditor()
 			if(ShownRect.m_H + ShownRect.m_Y > 1000000)
 			    ShownRect.m_H -= 1000000 - ShownRect.m_Y;
 			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
+			std::optional<int> BiggestW, BiggestH;
 			for(const auto &Rect : vVisibleButtonRects)
 			{
-			    if(!(ShownRect.m_X + ShownRect.m_W <= Rect.m_X || Rect.m_X + Rect.m_W <= ShownRect.m_X || ShownRect.m_Y + ShownRect.m_H <= Rect.m_Y || Rect.m_Y + Rect.m_H <= ShownRect.m_Y))
-			    {
-			        if(ShownRect.m_X + ShownRect.m_W > Rect.m_X)
-					ShownRect.m_W = Rect.m_X - ShownRect.m_X;
-			        else if(ShownRect.m_Y + ShownRect.m_H > Rect.m_Y)
-					ShownRect.m_H = Rect.m_Y - ShownRect.m_Y;
-			    }
+			    if(Rect.m_X >= ShownRect.m_W && Rect.m_Y >= ShownRect.m_Y)
+				{
+					BiggestW = Rect.m_X - ShownRect.m_X;
+					BiggestH = Rect.m_Y - ShownRect.m_Y;
+				}
 			}
+			ShownRect.m_W = std::min(ShownRect.m_W, BiggestW);
+			ShownRect.m_H = std::min(ShownRect.m_H, BiggestH);
 		}
 		//No finger on screen, then show it as is.
 		else
