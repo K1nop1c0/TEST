@@ -1808,7 +1808,7 @@ void CTouchControls::RenderButtonEditor()
 	else
 	{
 		ActiveFingerState = std::nullopt;
-		If(SelectedButton != nullptr)
+		if(SelectedButton != nullptr)
 		{
 			SelectedButton->m_UnitRect = ShownRect;
 			SelectedButton->UpdateScreenFromUnitRect();
@@ -1827,7 +1827,7 @@ void CTouchControls::RenderButtonEditor()
 	{
 		ZoomFingerState = std::nullopt;
 		ZoomStartPos = {0.0f, 0.0f};
-		If(SelectedButton != nullptr)
+		if(SelectedButton != nullptr)
 		{
 			SelectedButton->m_UnitRect = ShownRect;
 			SelectedButton->UpdateScreenFromUnitRect();
@@ -1900,7 +1900,7 @@ void CTouchControls::RenderButtonEditor()
 			if(ShownRect.m_W + ShownRect.m_X > 1000000)
 			ShownRect.m_W -= 1000000 - ShownRect.m_X;
 			if(ShownRect.m_H + ShownRect.m_Y > 1000000)
-			    SShownRect.m_H -= 1000000 - ShownRect.m_Y;
+			    ShownRect.m_H -= 1000000 - ShownRect.m_Y;
 			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
 			for(const auto &Rect : vVisibleButtonRects)
 			{
