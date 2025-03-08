@@ -1726,7 +1726,7 @@ void CTouchControls::RenderButtonEditor()
 	static bool FirstOpen = true;
 	static bool LongPress = false;
 	static vec2 AccumulatedDelta = {0.0f, 0.0f};
-	static std::optional<IInput::CTouchFingerState*> pLongPressFingerState;
+	static std::optional<IInput::CTouchFingerState> LongPressFingerState;
 	static CUnitRect ShownRect;
 	static std::vector<IInput::CTouchFingerState> DeletedFingerState;
 /*
@@ -1748,54 +1748,56 @@ void CTouchControls::RenderButtonEditor()
 
 	//Remove if the finger deleted has released. Though o(n*n), how many fingers do you expect to press down at the same time?
 	if(DeletedFingerState.size() != 0)
-		for(auto State = DeletedFingerState.begin(); State != DeletedFingerState.end(); State++)
-		{
-			bool IfNotExist = std::none_of(vTouchFingerStates.begin(), vTouchFingerStates.end(), [&State](const auto &TargetState){
-				return (*State).m_Finger == TargetState.m_Finger;
-			});
-			if(IfNotExist)
-				DeletedFingerState.erase(State);
-		}
+	{
+		const auto &Remove = std::remove_if(DeletedFingerState.begin(), DeletedFingerState.end(), [&vTouchFingerStates](auto &TargetState){
+			for(const auto &State : vTouchFingerStates)
+				if(State.m_Finger == TargetState.m_Finger)
+					return false;
+			return true;
+		});
+		DeletedFingerState.erase(Remove, DeletedFingerState.end());
+	}
 	//Delete fingers if they are press later. So they cant be the longpress finger.
 	if(vTouchFingerStates.size() > 1)
 		std::for_each(vTouchFingerStates.begin() + 1, vTouchFingerStates.end(), [](const auto &State){
 			DeletedFingerState.push_back(State);
 		});
 
-	//If released, and there is finger on screen, and the "first finger" is not deleted(new finger), then it can be LongPress.
+	//If released, and there is finger on screen, and the "first finger" is not deleted(new finger), then it can be a LongPress candidate.
 	if(vTouchFingerStates.size() != 0 && !std::any_of(DeletedFingerState.begin(), DeletedFingerState.end(), [&vTouchFingerStates](const auto &State){
 		return vTouchFingerStates[0].m_Finger == State.m_Finger;
 	}))
 	{
-		if(!pLongPressFingerState.has_value())
-			pLongPressFingerState = &vTouchFingerStates[0];
-		else if((*pLongPressFingerState)->m_Finger != vTouchFingerStates[0].m_Finger)
+		//No value, then give it. Has value, then update it, and reset the accumulated delta.
+		if(!LongPressFingerState.has_value())
+			LongPressFingerState = vTouchFingerStates[0];
+		else if((*LongPressFingerState).m_Finger != vTouchFingerStates[0].m_Finger)
 		{
-			pLongPressFingerState = &vTouchFingerStates[0];
+			LongPressFingerState = vTouchFingerStates[0];
 			AccumulatedDelta = {0.0f, 0.0f};
 		}
 	}
 		
 		
 	//Find long press button. LongPress == true means the first fingerstate long pressed.
-	if(pLongPressFingerState.has_value())
+	if(LongPressFingerState.has_value())
 	{
-    	AccumulatedDelta += (*pLongPressFingerState)->m_Delta;
+    	AccumulatedDelta += (*LongPressFingerState).m_Delta;
 		//If slided, then delete.
     	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.07)
     	{
     		AccumulatedDelta = {0.0f, 0.0f};
-			DeletedFingerState.push_back(*pLongPressFingerState.value());
-    		pLongPressFingerState = std::nullopt;
+			DeletedFingerState.push_back(*LongPressFingerState);
+    		LongPressFingerState = std::nullopt;
     	}
 		//till now, this else contains: if the finger hasn't slided, have no fingers that remain pressed down when it pressed, hasn't been a longpress already. 
     	else
     	{
     		const auto Now = time_get_nanoseconds();
-    		if(Now - (*pLongPressFingerState)->m_PressTime > 400ms)
+    		if(Now - (*LongPressFingerState).m_PressTime > 400ms)
     		{
 				LongPress = true;
-				DeletedFingerState.push_back(*pLongPressFingerState.value());
+				DeletedFingerState.push_back(*LongPressFingerState);
 			}
     	}
 	}
@@ -1804,7 +1806,15 @@ void CTouchControls::RenderButtonEditor()
 	if(vTouchFingerStates.size() > 0)
 		ActiveFingerState = vTouchFingerStates[0];
 	else
+	{
 		ActiveFingerState = std::nullopt;
+		If(SelectedButton != nullptr)
+		{
+			SelectedButton->m_UnitRect = ShownRect;
+			SelectedButton->UpdateScreenFromUnitRect();
+		}
+			
+	}
 	//Only the second finger will be used for zooming button.
 	if(vTouchFingerStates.size() > 1)
 	{
@@ -1817,6 +1827,11 @@ void CTouchControls::RenderButtonEditor()
 	{
 		ZoomFingerState = std::nullopt;
 		ZoomStartPos = {0.0f, 0.0f};
+		If(SelectedButton != nullptr)
+		{
+			SelectedButton->m_UnitRect = ShownRect;
+			SelectedButton->UpdateScreenFromUnitRect();
+		}
 	}
 	
 	//vVisibilities should be set manually(by user), a default value is given. Only used in the editor to decide if a button is visible.
@@ -1828,15 +1843,15 @@ void CTouchControls::RenderButtonEditor()
 		if(IsVisible)
 		{
 			//Only Long Pressed finger "in visible button" is used for selecting a button.
-			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*pLongPressFingerState)->m_Position * ScreenSize))
+			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*LongPressFingerState).m_Position * ScreenSize))
 			{
 				if(SelectedButton == nullptr || SelectedButton != &TouchButton)
 				{
 					SelectedButton = &TouchButton;
-					ActiveFingerState = *(pLongPressFingerState.value());
+					ActiveFingerState = *LongPressFingerState;
 				}
 				//LongPress used.
-				pLongPressFingerState = std::nullopt;
+				LongPressFingerState = std::nullopt;
 				LongPress = false;
 				//Don't render the selected button. It's place should change and there should be extra UI.
 				continue;
@@ -1860,7 +1875,7 @@ void CTouchControls::RenderButtonEditor()
 		    SelectedButton->Render();
 		SelectedButton = nullptr;
 		LongPress = false;
-		pLongPressFingerState = std::nullopt;
+		LongPressFingerState = std::nullopt;
 	}
 	
 	if(SelectedButton != nullptr)
@@ -1872,30 +1887,35 @@ void CTouchControls::RenderButtonEditor()
 			SelectedButton->m_UnitRect.m_Y += UnitXYDelta.y;
 			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
 		}
-		if(ActiveFingerState.has_value() && ZoomFingerState.has_value())
+		else if(ActiveFingerState.has_value() && ZoomFingerState.has_value())
 		{
+			ShownRect = SelectedButton->m_UnitRect;
 			vec2 UnitWHDelta;
 			UnitWHDelta.x = (std::abs(ActiveFingerState.value().m_Position.x - ZoomFingerState.value().m_Position.x) - std::abs(ZoomStartPos.x)) * 1000000;
 			UnitWHDelta.y = (std::abs(ActiveFingerState.value().m_Position.y - ZoomFingerState.value().m_Position.y) - std::abs(ZoomStartPos.y)) * 1000000;
-			SelectedButton->m_UnitRect.m_W += UnitWHDelta.x;
-			SelectedButton->m_UnitRect.m_H += UnitWHDelta.y;
-			SelectedButton->m_UnitRect.m_W = clamp(SelectedButton->m_UnitRect.m_W, 50000, 500000);
-			SelectedButton->m_UnitRect.m_H = clamp(SelectedButton->m_UnitRect.m_H, 50000, 500000);
-			if(SelectedButton->m_UnitRect.m_W + SelectedButton->m_UnitRect.m_X > 1000000)
-			    SelectedButton->m_UnitRect.m_W -= 1000000 - SelectedButton->m_UnitRect.m_X;
-			if(SelectedButton->m_UnitRect.m_H + SelectedButton->m_UnitRect.m_Y > 1000000)
-			    SelectedButton->m_UnitRect.m_H -= 1000000 - SelectedButton->m_UnitRect.m_Y;
+			ShownRect.m_W = SelectedButton->m_UnitRect.m_W + UnitWHDelta.x;
+			ShownRect.m_H = SelectedButton->m_UnitRect.m_H + UnitWHDelta.y;
+			ShownRect.m_W = clamp(ShownRect.m_W, 50000, 500000);
+			ShownRect.m_H = clamp(ShownRect.m_H, 50000, 500000);
+			if(ShownRect.m_W + ShownRect.m_X > 1000000)
+			ShownRect.m_W -= 1000000 - ShownRect.m_X;
+			if(ShownRect.m_H + ShownRect.m_Y > 1000000)
+			    SShownRect.m_H -= 1000000 - ShownRect.m_Y;
 			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
 			for(const auto &Rect : vVisibleButtonRects)
 			{
-			    if(!(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W <= Rect.m_X || Rect.m_X + Rect.m_W <= SelectedButton->m_UnitRect.m_X || SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H <= Rect.m_Y || Rect.m_Y + Rect.m_H <= SelectedButton->m_UnitRect.m_Y))
+			    if(!(ShownRect.m_X + ShownRect.m_W <= Rect.m_X || Rect.m_X + Rect.m_W <= ShownRect.m_X || ShownRect.m_Y + ShownRect.m_H <= Rect.m_Y || Rect.m_Y + Rect.m_H <= ShownRect.m_Y))
 			    {
-			        if(SelectedButton->m_UnitRect.m_X + SelectedButton->m_UnitRect.m_W > Rect.m_X)
-			            SelectedButton->m_UnitRect.m_W = Rect.m_X - SelectedButton->m_UnitRect.m_X;
-			        else if(SelectedButton->m_UnitRect.m_Y + SelectedButton->m_UnitRect.m_H > Rect.m_Y)
-			            SelectedButton->m_UnitRect.m_H = Rect.m_Y - SelectedButton->m_UnitRect.m_Y;
+			        if(ShownRect.m_X + ShownRect.m_W > Rect.m_X)
+					ShownRect.m_W = Rect.m_X - ShownRect.m_X;
+			        else if(ShownRect.m_Y + ShownRect.m_H > Rect.m_Y)
+					ShownRect.m_H = Rect.m_Y - ShownRect.m_Y;
 			    }
 			}
+		}
+		//No finger on screen, then show it as is.
+		else
+		{
 			ShownRect = SelectedButton->m_UnitRect;
 		}
 		//Finished moving, no finger on screen.
