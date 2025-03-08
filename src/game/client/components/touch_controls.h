@@ -165,9 +165,9 @@ private:
 		int m_H;
 		bool operator<(const CUnitRect &Other) const
 		{
-       		if (m_X + m_H / 2 != Other.m_X + Other.m_H / 2)
-      	    	return m_X < Other.m_X;
-     		return m_Y < Other.m_Y;
+       		if (m_X + m_W / 2 != Other.m_X + Other.m_W / 2)
+      	    		return m_X + m_W / 2 < Other.m_X + Other.m_W / 2;
+     		return m_Y + m_H / 2  < Other.m_Y + Other.m_H / 2;
   		}
 		//This means distance;
 		double operator/(const CUnitRect &Other)
