@@ -1781,7 +1781,7 @@ void CTouchControls::RenderButtonEditor()
 	{
     	AccumulatedDelta += (*LongPressFingerState).m_Delta;
 		//If slided, then delete.
-    	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.07)
+    	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.0005)
     	{
     		AccumulatedDelta = {0.0f, 0.0f};
 			DeletedFingerState.push_back(*LongPressFingerState);
@@ -1831,7 +1831,9 @@ void CTouchControls::RenderButtonEditor()
 			SelectedButton->UpdateScreenFromUnitRect();
 		}
 	}
-	
+
+	//Don't the button that was selected last frame but not anymore now.
+	CTouchButton *NoRenderButton;
 	//vVisibilities should be set manually(by user), a default value is given. Only used in the editor to decide if a button is visible.
 	for(auto &TouchButton : m_vTouchButtons)
 	{
@@ -1843,8 +1845,19 @@ void CTouchControls::RenderButtonEditor()
 			//Only Long Pressed finger "in visible button" is used for selecting a button.
 			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*LongPressFingerState).m_Position * ScreenSize))
 			{
-				if(SelectedButton == nullptr || SelectedButton != &TouchButton)
+				if(SelectedButton == nullptr)
 				{
+					SelectedButton = &TouchButton;
+					ActiveFingerState = *LongPressFingerState;
+				}
+				//If SelectedButton changes, Update the original button's rect, then change.
+				else if(SelectedButton != &TouchButton)
+				{
+					SelectedButton->m_UnitRect = ShownRect;
+					SelectedButton->UpdateScreenFromUnitRect();
+					SelectedButton->Render();
+					vVisibleButtonRects.insert(SelectedButton->m_UnitRect);
+					NoRenderButton = SelectedButton;
 					SelectedButton = &TouchButton;
 					ActiveFingerState = *LongPressFingerState;
 				}
@@ -1854,10 +1867,10 @@ void CTouchControls::RenderButtonEditor()
 				//Don't render the selected button. It's place should change and there should be extra UI.
 				continue;
 			}
-			if(SelectedButton == &TouchButton)
+			if(SelectedButton == &TouchButton || NoRenderButton == &TouchButton)
 				continue;
-			//Render visible but not selected buttons.
-			TouchButton.Render(); 
+			//Render visible but not selected buttons, and also not selected last frame.
+			TouchButton.Render();
 			vVisibleButtonRects.insert(TouchButton.m_UnitRect);
 		}
 		else if(SelectedButton == &TouchButton)
