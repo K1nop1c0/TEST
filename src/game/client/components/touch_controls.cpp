@@ -1648,19 +1648,17 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRec
 	if(MyRect.m_Y + MyRect.m_H > 1000000)
 		MyRect.m_Y = 1000000 - MyRect.m_H;
 	//Find the first overlapped rect, which hasn't been overlapped before. If overlapped twice, this way is blocked.
-	const auto &MainOverlappedRect = [&](){
-		return std::find_if(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&](const auto &OtherRect){
-				Iterator ++;
-				bool CheckOverlap = !(MyRect.m_X + MyRect.m_W <= OtherRect.m_X || OtherRect.m_X + OtherRect.m_W <= MyRect.m_X || MyRect.m_Y + MyRect.m_H <= OtherRect.m_Y || OtherRect.m_Y + OtherRect.m_H <= MyRect.m_Y);
-				if(CheckOverlap && vCheckedRects[Iterator])
-				{
-					OverlappedTwice = true;
-					return false;
-				}
-				else
-					return CheckOverlap;
-			});
-	}();
+	const auto &MainOverlappedRect = std::find_if(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&](const auto &OtherRect){
+			Iterator ++;
+			bool CheckOverlap = !(MyRect.m_X + MyRect.m_W <= OtherRect.m_X || OtherRect.m_X + OtherRect.m_W <= MyRect.m_X || MyRect.m_Y + MyRect.m_H <= OtherRect.m_Y || OtherRect.m_Y + OtherRect.m_H <= MyRect.m_Y);
+			if(CheckOverlap && vCheckedRects[Iterator])
+			{
+				OverlappedTwice = true;
+				return false;
+			}
+			else
+				return CheckOverlap;
+		});
 	if(MainOverlappedRect == vVisibleButtonRects.end())
 	{
 		if(OverlappedTwice)
@@ -1731,12 +1729,14 @@ void CTouchControls::RenderButtonEditor()
 	static std::optional<IInput::CTouchFingerState*> pLongPressFingerState;
 	static CUnitRect ShownRect;
 	static std::vector<IInput::CTouchFingerState> DeletedFingerState;
+/*
     char EditX[16], EditY[16], EditW[16], EditH[16];
     static std::string SavedX = "0", SavedY = "0", SavedW = "50000", SavedH = "50000";
 	static CLineInput InputX(EditX, sizeof(EditX), 6),
 	                  InputY(EditY, sizeof(EditY), 6),
 	                  InputW(EditW, sizeof(EditW), 6),
 	                  InputH(EditH, sizeof(EditH), 6);
+*/
 	std::set<CUnitRect> vVisibleButtonRects;
 	if(FirstOpen)
 	{
@@ -1841,6 +1841,8 @@ void CTouchControls::RenderButtonEditor()
 				//Don't render the selected button. It's place should change and there should be extra UI.
 				continue;
 			}
+			if(SelectedButton == &TouchButton)
+				continue;
 			//Render visible but not selected buttons.
 			TouchButton.UpdateBackgroundCorners();
 			TouchButton.Render(); 
@@ -1902,6 +1904,7 @@ void CTouchControls::RenderButtonEditor()
 			AccumulatedDelta = {0.0f, 0.0f};
 			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
 			SelectedButton->m_UnitRect = ShownRect;
+			SelectedButton->UpdateScreenFromUnitRect();
 		}
 	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
 	    TmpButton->m_UnitRect = ShownRect;
