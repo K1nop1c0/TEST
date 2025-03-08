@@ -1729,7 +1729,7 @@ void CTouchControls::RenderButtonEditor()
 	static bool LongPress = false;
 	static vec2 AccumulatedDelta = {0.0f, 0.0f};
 	static std::optional<IInput::CTouchFingerState> LongPressFingerState;
-	static CUnitRect ShownRect;
+	static std::optional<CUnitRect> ShownRect;
 	static std::vector<IInput::CTouchFingerState> DeletedFingerState;
 /*
     char EditX[16], EditY[16], EditW[16], EditH[16];
@@ -1807,9 +1807,9 @@ void CTouchControls::RenderButtonEditor()
 	else
 	{
 		ActiveFingerState = std::nullopt;
-		if(SelectedButton != nullptr)
+		if(SelectedButton != nullptr && ShownRect.has_value())
 		{
-			SelectedButton->m_UnitRect = ShownRect;
+			SelectedButton->m_UnitRect = (*ShownRect);
 			SelectedButton->UpdateScreenFromUnitRect();
 		}
 			
@@ -1821,15 +1821,20 @@ void CTouchControls::RenderButtonEditor()
 		if(!ZoomFingerState.has_value())
 			ZoomStartPos = ActiveFingerState.value().m_Position - vTouchFingerStates[1].m_Position;
 		ZoomFingerState = vTouchFingerStates[1];
+		if(ShownRect.has_value())
+		{
+		    SelectedButton->m_UnitRect.m_X = (*ShownRect).m_X;
+			SelectedButton->m_UnitRect.m_Y = (*ShownRect).m_Y;
+		}
 	}
 	else
 	{
 		ZoomFingerState = std::nullopt;
 		ZoomStartPos = {0.0f, 0.0f};
-		if(SelectedButton != nullptr)
+		if(SelectedButton != nullptr && ShownRect.has_value())
 		{
-			SelectedButton->m_UnitRect.m_W = ShownRect.m_W;
-			SelectedButton->m_UnitRect.m_H = ShownRect.m_H;
+			SelectedButton->m_UnitRect.m_W = (*ShownRect).m_W;
+			SelectedButton->m_UnitRect.m_H = (*ShownRect).m_H;
 			SelectedButton->UpdateScreenFromUnitRect();
 		}
 	}
@@ -1855,7 +1860,7 @@ void CTouchControls::RenderButtonEditor()
 				//If SelectedButton changes, Update the original button's rect, then change.
 				else if(SelectedButton != &TouchButton)
 				{
-					SelectedButton->m_UnitRect = ShownRect;
+					SelectedButton->m_UnitRect = (*ShownRect);
 					SelectedButton->UpdateScreenFromUnitRect();
 					SelectedButton->Render();
 					vVisibleButtonRects.insert(SelectedButton->m_UnitRect);
@@ -1905,26 +1910,26 @@ void CTouchControls::RenderButtonEditor()
 			vec2 UnitWHDelta;
 			UnitWHDelta.x = (std::abs(ActiveFingerState.value().m_Position.x - ZoomFingerState.value().m_Position.x) - std::abs(ZoomStartPos.x)) * 1000000;
 			UnitWHDelta.y = (std::abs(ActiveFingerState.value().m_Position.y - ZoomFingerState.value().m_Position.y) - std::abs(ZoomStartPos.y)) * 1000000;
-			ShownRect.m_W = SelectedButton->m_UnitRect.m_W + UnitWHDelta.x;
-			ShownRect.m_H = SelectedButton->m_UnitRect.m_H + UnitWHDelta.y;
-			ShownRect.m_W = clamp(ShownRect.m_W, 50000, 500000);
-			ShownRect.m_H = clamp(ShownRect.m_H, 50000, 500000);
-			if(ShownRect.m_W + ShownRect.m_X > 1000000)
-			ShownRect.m_W -= 1000000 - ShownRect.m_X;
-			if(ShownRect.m_H + ShownRect.m_Y > 1000000)
-			    ShownRect.m_H -= 1000000 - ShownRect.m_Y;
+			(*ShownRect).m_W = SelectedButton->m_UnitRect.m_W + UnitWHDelta.x;
+			(*ShownRect).m_H = SelectedButton->m_UnitRect.m_H + UnitWHDelta.y;
+			(*ShownRect).m_W = clamp((*ShownRect).m_W, 50000, 500000);
+			(*ShownRect).m_H = clamp((*ShownRect).m_H, 50000, 500000);
+			if((*ShownRect).m_W + (*ShownRect).m_X > 1000000)
+			(*ShownRect).m_W -= 1000000 - (*ShownRect).m_X;
+			if((*ShownRect).m_H + (*ShownRect).m_Y > 1000000)
+			    (*ShownRect).m_H -= 1000000 - (*ShownRect).m_Y;
 			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
 			std::optional<int> BiggestW, BiggestH;
 			for(const auto &Rect : vVisibleButtonRects)
 			{
-			    if(Rect.m_X >= ShownRect.m_W && Rect.m_Y >= ShownRect.m_Y)
+			    if(Rect.m_X >= (*ShownRect).m_W && Rect.m_Y >= (*ShownRect).m_Y)
 				{
-					BiggestW = Rect.m_X - ShownRect.m_X;
-					BiggestH = Rect.m_Y - ShownRect.m_Y;
+					BiggestW = Rect.m_X - (*ShownRect).m_X;
+					BiggestH = Rect.m_Y - (*ShownRect).m_Y;
 				}
 			}
-			ShownRect.m_W = std::min(ShownRect.m_W, *BiggestW);
-			ShownRect.m_H = std::min(ShownRect.m_H, *BiggestH);
+			(*ShownRect).m_W = std::min((*ShownRect).m_W, *BiggestW);
+			(*ShownRect).m_H = std::min((*ShownRect).m_H, *BiggestH);
 		}
 		//No finger on screen, then show it as is.
 		else
@@ -1936,11 +1941,11 @@ void CTouchControls::RenderButtonEditor()
 		{
 			AccumulatedDelta = {0.0f, 0.0f};
 			ShownRect = FindPositionXY(vVisibleButtonRects, SelectedButton->m_UnitRect);
-			SelectedButton->m_UnitRect = ShownRect;
+			SelectedButton->m_UnitRect = (*ShownRect);
 			SelectedButton->UpdateScreenFromUnitRect();
 		}
 	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
-	    TmpButton->m_UnitRect = ShownRect;
+	    TmpButton->m_UnitRect = (*ShownRect);
 	    TmpButton->m_Shape = SelectedButton->m_Shape;
 	    TmpButton->m_vVisibilities = SelectedButton->m_vVisibilities;
 	    TmpButton->m_pBehavior = std::move(SelectedButton->m_pBehavior);
