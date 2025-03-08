@@ -42,7 +42,7 @@ static constexpr int BUTTON_SIZE_SCALE = 1000000;
 static constexpr int BUTTON_SIZE_MINIMUM = 50000;
 static constexpr int BUTTON_SIZE_MAXIMUM = 500000;
 
-CTouchButton *CTouchControls::SelectedButton = nullptr;
+CTouchControls::CTouchButton *CTouchControls::SelectedButton = nullptr;
 
 /* This is required for the localization script to find the labels of the default bind buttons specified in the configuration file:
 Localizable("Move left") Localizable("Move right") Localizable("Jump") Localizable("Prev. weapon") Localizable("Next weapon")
@@ -1751,7 +1751,7 @@ void CTouchControls::RenderButtonEditor()
 		for(auto State = DeletedFingerState.begin(); State != DeletedFingerState.end(); State++)
 		{
 			bool IfNotExist = std::none_of(vTouchFingerStates.begin(), vTouchFingerStates.end(), [&State](const auto &TargetState){
-				(*State).m_Finger == TargetState.m_Finger;
+				return (*State).m_Finger == TargetState.m_Finger;
 			});
 			if(IfNotExist)
 				DeletedFingerState.erase(State);
