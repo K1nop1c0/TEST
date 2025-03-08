@@ -581,7 +581,7 @@ private:
 	
 	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {});
 
-	static CTouchButton *SelectedButton = nullptr;
+	static CTouchButton *SelectedButton;
 	void RenderButtonEditor();
 };
 
