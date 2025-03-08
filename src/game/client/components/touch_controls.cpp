@@ -1908,8 +1908,8 @@ void CTouchControls::RenderButtonEditor()
 					BiggestH = Rect.m_Y - ShownRect.m_Y;
 				}
 			}
-			ShownRect.m_W = std::min(ShownRect.m_W, BiggestW);
-			ShownRect.m_H = std::min(ShownRect.m_H, BiggestH);
+			ShownRect.m_W = std::min(ShownRect.m_W, *BiggestW);
+			ShownRect.m_H = std::min(ShownRect.m_H, *BiggestH);
 		}
 		//No finger on screen, then show it as is.
 		else
