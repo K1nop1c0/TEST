@@ -1204,6 +1204,8 @@ bool CTouchControls::ParseConfiguration(const void *pFileData, unsigned FileLeng
 
 	json_value_free(pConfiguration);
 
+	SelectedButton = nullptr;
+
 	return true;
 }
 
@@ -1832,8 +1834,8 @@ void CTouchControls::RenderButtonEditor()
 		}
 	}
 
-	//Don't the button that was selected last frame but not anymore now.
-	CTouchButton *NoRenderButton;
+	//Don't render the button that was selected last frame but not anymore now normally.
+	CTouchButton *NoRenderButton = SelectedButton;
 	//vVisibilities should be set manually(by user), a default value is given. Only used in the editor to decide if a button is visible.
 	for(auto &TouchButton : m_vTouchButtons)
 	{
