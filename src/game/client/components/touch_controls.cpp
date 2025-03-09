@@ -1731,6 +1731,7 @@ void CTouchControls::RenderButtonEditor()
 	static std::optional<IInput::CTouchFingerState> LongPressFingerState;
 	static std::optional<CUnitRect> ShownRect;
 	static std::vector<IInput::CTouchFingerState> DeletedFingerState;
+	static CUnitRect LastFrameRect = {0, 0, 50000, 50000};
 /*
     char EditX[16], EditY[16], EditW[16], EditH[16];
     static std::string SavedX = "0", SavedY = "0", SavedW = "50000", SavedH = "50000";
@@ -1776,14 +1777,18 @@ void CTouchControls::RenderButtonEditor()
 		//Update the LongPress candidate state.
 		LongPressFingerState = vTouchFingerStates[0];
 	}
-		
+	//If no suitable finger for long press, then clear it.
+	else
+	{
+		LongPressFingerState = std::nullopt;
+	}
 		
 	//Find long press button. LongPress == true means the first fingerstate long pressed.
 	if(LongPressFingerState.has_value())
 	{
     	AccumulatedDelta += (*LongPressFingerState).m_Delta;
 		//If slided, then delete.
-    	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.0005)
+    	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.0003)
     	{
     		AccumulatedDelta = {0.0f, 0.0f};
 			DeletedFingerState.push_back(*LongPressFingerState);
@@ -1797,6 +1802,8 @@ void CTouchControls::RenderButtonEditor()
     		{
 				LongPress = true;
 				DeletedFingerState.push_back(*LongPressFingerState);
+				//LongPress will be used this frame for sure, so reset delta.
+				AccumulatedDelta = {0.0f, 0.0f};
 			}
     	}
 	}
@@ -1852,22 +1859,17 @@ void CTouchControls::RenderButtonEditor()
 			//Only Long Pressed finger "in visible button" is used for selecting a button.
 			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*LongPressFingerState).m_Position * ScreenSize))
 			{
-				if(SelectedButton == nullptr)
-				{
-					SelectedButton = &TouchButton;
-					ActiveFingerState = *LongPressFingerState;
-				}
 				//If SelectedButton changes, Update the original button's rect, then change.
-				else if(SelectedButton != &TouchButton)
+				if(SelectedButton != &TouchButton)
 				{
 					SelectedButton->m_UnitRect = (*ShownRect);
 					SelectedButton->UpdateScreenFromUnitRect();
 					SelectedButton->Render();
 					vVisibleButtonRects.insert(SelectedButton->m_UnitRect);
 					NoRenderButton = SelectedButton;
-					SelectedButton = &TouchButton;
-					ActiveFingerState = *LongPressFingerState;
 				}
+				SelectedButton = &TouchButton;
+				ActiveFingerState = *LongPressFingerState;
 				//LongPress used.
 				LongPressFingerState = std::nullopt;
 				LongPress = false;
@@ -1922,10 +1924,14 @@ void CTouchControls::RenderButtonEditor()
 			std::optional<int> BiggestW, BiggestH;
 			for(const auto &Rect : vVisibleButtonRects)
 			{
-			    if(Rect.m_X >= (*ShownRect).m_W && Rect.m_Y >= (*ShownRect).m_Y)
+				//If Overlap
+			    if(!(Rect.m_X + Rect.m_W <= (*ShownRect).m_X || (*ShownRect).m_X + (*ShownRect).m_W <= Rect.m_X || Rect.m_Y + Rect.m_H <= (*ShownRect).m_Y || (*ShownRect).m_Y + (*ShownRect).m_H <= Rect.m_Y))
 				{
-					BiggestW = Rect.m_X - (*ShownRect).m_X;
-					BiggestH = Rect.m_Y - (*ShownRect).m_Y;
+					//This is harder than it looks. You need to use the rect from last frame for help.
+					if(LastFrameRect.m_X + LastFrameRect.m_W < Rect.m_X)
+						BiggestW = Rect.m_X - (*ShownRect).m_X;
+					if(LastFrameRect.m_Y + LastFrameRect.m_H < Rect.m_Y)
+						BiggestH = Rect.m_Y - (*ShownRect).m_Y;
 				}
 			}
 			(*ShownRect).m_W = std::min((*ShownRect).m_W, *BiggestW);
@@ -1936,6 +1942,8 @@ void CTouchControls::RenderButtonEditor()
 		{
 			ShownRect = SelectedButton->m_UnitRect;
 		}
+		//Update the lastframerect.
+		LastFrameRect = *ShownRect;
 		//Finished moving, no finger on screen.
 		if(vTouchFingerStates.size() == 0)
 		{
