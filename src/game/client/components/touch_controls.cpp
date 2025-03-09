@@ -1788,7 +1788,7 @@ void CTouchControls::RenderButtonEditor()
 	{
     	AccumulatedDelta += (*LongPressFingerState).m_Delta;
 		//If slided, then delete.
-    	if(AccumulatedDelta.x + AccumulatedDelta.y > 0.0003)
+    	if(std::abs(AccumulatedDelta.x) + std::abs(AccumulatedDelta.y) > 0.0005)
     	{
     		AccumulatedDelta = {0.0f, 0.0f};
 			DeletedFingerState.push_back(*LongPressFingerState);
@@ -1934,8 +1934,8 @@ void CTouchControls::RenderButtonEditor()
 						BiggestH = Rect.m_Y - (*ShownRect).m_Y;
 				}
 			}
-			(*ShownRect).m_W = std::min((*ShownRect).m_W, *BiggestW);
-			(*ShownRect).m_H = std::min((*ShownRect).m_H, *BiggestH);
+			(*ShownRect).m_W = std::min((*ShownRect).m_W, BiggestW.value_or(1000000));
+			(*ShownRect).m_H = std::min((*ShownRect).m_H, BiggestH.value_or(1000000));
 		}
 		//No finger on screen, then show it as is.
 		else
@@ -1943,7 +1943,7 @@ void CTouchControls::RenderButtonEditor()
 			ShownRect = SelectedButton->m_UnitRect;
 		}
 		//Update the lastframerect.
-		LastFrameRect = *ShownRect;
+		LastFrameRect = ShownRect;
 		//Finished moving, no finger on screen.
 		if(vTouchFingerStates.size() == 0)
 		{
