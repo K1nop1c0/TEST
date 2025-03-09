@@ -1828,7 +1828,7 @@ void CTouchControls::RenderButtonEditor()
 		if(!ZoomFingerState.has_value())
 			ZoomStartPos = ActiveFingerState.value().m_Position - vTouchFingerStates[1].m_Position;
 		ZoomFingerState = vTouchFingerStates[1];
-		if(ShownRect.has_value())
+		if(ShownRect.has_value() && SelectedButton != nullptr)
 		{
 		    SelectedButton->m_UnitRect.m_X = (*ShownRect).m_X;
 			SelectedButton->m_UnitRect.m_Y = (*ShownRect).m_Y;
@@ -1917,9 +1917,9 @@ void CTouchControls::RenderButtonEditor()
 			(*ShownRect).m_W = clamp((*ShownRect).m_W, 50000, 500000);
 			(*ShownRect).m_H = clamp((*ShownRect).m_H, 50000, 500000);
 			if((*ShownRect).m_W + (*ShownRect).m_X > 1000000)
-			(*ShownRect).m_W -= 1000000 - (*ShownRect).m_X;
+				(*ShownRect).m_W = 1000000 - (*ShownRect).m_X;
 			if((*ShownRect).m_H + (*ShownRect).m_Y > 1000000)
-			    (*ShownRect).m_H -= 1000000 - (*ShownRect).m_Y;
+			    (*ShownRect).m_H = 1000000 - (*ShownRect).m_Y;
 			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
 			std::optional<int> BiggestW, BiggestH;
 			for(const auto &Rect : vVisibleButtonRects)
@@ -1934,16 +1934,14 @@ void CTouchControls::RenderButtonEditor()
 						BiggestH = Rect.m_Y - (*ShownRect).m_Y;
 				}
 			}
-			(*ShownRect).m_W = std::min((*ShownRect).m_W, BiggestW.value_or(1000000));
-			(*ShownRect).m_H = std::min((*ShownRect).m_H, BiggestH.value_or(1000000));
+			(*ShownRect).m_W = BiggestW.value_or((*ShownRect).m_W);
+			(*ShownRect).m_H = BiggestH.value_or((*ShownRect).m_H);
 		}
 		//No finger on screen, then show it as is.
 		else
 		{
 			ShownRect = SelectedButton->m_UnitRect;
 		}
-		//Update the lastframerect.
-		LastFrameRect = *ShownRect;
 		//Finished moving, no finger on screen.
 		if(vTouchFingerStates.size() == 0)
 		{
@@ -1952,7 +1950,9 @@ void CTouchControls::RenderButtonEditor()
 			SelectedButton->m_UnitRect = (*ShownRect);
 			SelectedButton->UpdateScreenFromUnitRect();
 		}
+
 	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
+		LastFrameRect = *ShownRect;
 	    TmpButton->m_UnitRect = (*ShownRect);
 	    TmpButton->m_Shape = SelectedButton->m_Shape;
 	    TmpButton->m_vVisibilities = SelectedButton->m_vVisibilities;
