@@ -1943,7 +1943,7 @@ void CTouchControls::RenderButtonEditor()
 			ShownRect = SelectedButton->m_UnitRect;
 		}
 		//Update the lastframerect.
-		LastFrameRect = ShownRect.value_or({0, 0, 50000, 50000});
+		LastFrameRect = *ShownRect;
 		//Finished moving, no finger on screen.
 		if(vTouchFingerStates.size() == 0)
 		{
