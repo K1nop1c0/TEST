@@ -1860,7 +1860,7 @@ void CTouchControls::RenderButtonEditor()
 			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*LongPressFingerState).m_Position * ScreenSize))
 			{
 				//If SelectedButton changes, Update the original button's rect, then change.
-				if(SelectedButton != &TouchButton)
+				if(SelectedButton != nullptr && SelectedButton != &TouchButton)
 				{
 					SelectedButton->m_UnitRect = (*ShownRect);
 					SelectedButton->UpdateScreenFromUnitRect();
@@ -1943,7 +1943,7 @@ void CTouchControls::RenderButtonEditor()
 			ShownRect = SelectedButton->m_UnitRect;
 		}
 		//Update the lastframerect.
-		LastFrameRect = *ShownRect;
+		LastFrameRect = ShownRect.value_or({0, 0, 50000, 50000});
 		//Finished moving, no finger on screen.
 		if(vTouchFingerStates.size() == 0)
 		{
