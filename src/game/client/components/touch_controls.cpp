@@ -1731,7 +1731,6 @@ void CTouchControls::RenderButtonEditor()
 	static std::optional<IInput::CTouchFingerState> LongPressFingerState;
 	static std::optional<CUnitRect> ShownRect;
 	static std::vector<IInput::CTouchFingerState> DeletedFingerState;
-	static CUnitRect LastFrameRect = {0, 0, 50000, 50000};
 /*
     char EditX[16], EditY[16], EditW[16], EditH[16];
     static std::string SavedX = "0", SavedY = "0", SavedW = "50000", SavedH = "50000";
@@ -1927,11 +1926,13 @@ void CTouchControls::RenderButtonEditor()
 				//If Overlap
 			    if(!(Rect.m_X + Rect.m_W <= (*ShownRect).m_X || (*ShownRect).m_X + (*ShownRect).m_W <= Rect.m_X || Rect.m_Y + Rect.m_H <= (*ShownRect).m_Y || (*ShownRect).m_Y + (*ShownRect).m_H <= Rect.m_Y))
 				{
-					//This is harder than it looks. You need to use the rect from last frame for help.
-					if(LastFrameRect.m_X + LastFrameRect.m_W < Rect.m_X)
-						BiggestW = Rect.m_X - (*ShownRect).m_X;
-					if(LastFrameRect.m_Y + LastFrameRect.m_H < Rect.m_Y)
-						BiggestH = Rect.m_Y - (*ShownRect).m_Y;
+					//This is harder than it looks. This is still not the best solution.
+					BiggestW = Rect.m_X - (*ShownRect).m_X;
+					BiggestH = Rect.m_Y - (*ShownRect).m_Y;
+					if((*ShownRect).m_X + (*ShownRect).m_W - Rect.m_X > (*ShownRect).m_Y + (*ShownRect).m_H - Rect.m_Y)
+						BiggestW = std::nullopt;
+					else
+					 	BiggestH = std::nullopt;
 				}
 			}
 			(*ShownRect).m_W = BiggestW.value_or((*ShownRect).m_W);
@@ -1952,7 +1953,6 @@ void CTouchControls::RenderButtonEditor()
 		}
 
 	    std::unique_ptr<CTouchButton> TmpButton = std::make_unique<CTouchButton>(&(GameClient()->m_TouchControls));
-		LastFrameRect = *ShownRect;
 	    TmpButton->m_UnitRect = (*ShownRect);
 	    TmpButton->m_Shape = SelectedButton->m_Shape;
 	    TmpButton->m_vVisibilities = SelectedButton->m_vVisibilities;
