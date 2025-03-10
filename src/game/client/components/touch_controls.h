@@ -7,6 +7,7 @@
 #include <engine/input.h>
 
 #include <game/client/component.h>
+#include <game/client/lineinput.h>
 #include <game/client/ui_rect.h>
 
 #include <chrono>
