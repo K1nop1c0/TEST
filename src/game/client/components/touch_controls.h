@@ -6,9 +6,11 @@
 
 #include <engine/input.h>
 
+//#include <game/client/lineinput.h>
 #include <game/client/component.h>
-#include <game/client/lineinput.h>
 #include <game/client/ui_rect.h>
+#include <game/client/lineinput.h>
+
 
 #include <chrono>
 #include <functional>
@@ -16,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <set>
 
 class CJsonWriter;
 typedef struct _json_value json_value;
@@ -50,6 +53,8 @@ public:
 	bool LoadConfigurationFromClipboard();
 	bool SaveConfigurationToFile();
 	void SaveConfigurationToClipboard();
+	void OnOpenTouchButtonEditor();
+	void RenderTouchButtonEditor(CUIRect MainView);
 
 	EDirectTouchIngameMode DirectTouchIngame() const { return m_DirectTouchIngame; }
 	void SetDirectTouchIngame(EDirectTouchIngameMode DirectTouchIngame)
@@ -67,6 +72,7 @@ public:
 	void SetEditingActive(bool EditingActive) { m_EditingActive = EditingActive; }
 	bool HasEditingChanges() const { return m_EditingChanges; }
 	void SetEditingChanges(bool EditingChanges) { m_EditingChanges = EditingChanges; }
+	bool IsButtonSelected() const { return m_pSelectedButton != nullptr; }
 
 private:
 	static constexpr const char *const DIRECT_TOUCH_INGAME_MODE_NAMES[(int)EDirectTouchIngameMode::NUM_STATES] = {"disabled", "action", "aim", "fire", "hook"};
@@ -162,6 +168,23 @@ private:
 		int m_Y;
 		int m_W;
 		int m_H;
+		bool operator<(const CUnitRect &Other) const
+		{
+       		if (m_X + m_W / 2 != Other.m_X + Other.m_W / 2)
+      	    		return m_X + m_W / 2 < Other.m_X + Other.m_W / 2;
+     		return m_Y + m_H / 2  < Other.m_Y + Other.m_H / 2;
+  		}
+		//This means distance;
+		double operator/(const CUnitRect &Other) const
+		{
+			double Dx = Other.m_X + Other.m_W / 2 - m_X - m_W / 2;
+			Dx /= 1000000;
+			Dx *= Dx;
+			double Dy = Other.m_Y + Other.m_H / 2 - m_Y - m_H / 2;
+			Dy /= 1000000;
+			Dy *= Dy;
+			return std::sqrt(Dx + Dy);
+		}
 	};
 
 	class CTouchButtonBehavior;
@@ -545,6 +568,7 @@ private:
 	int NextActiveAction(int Action) const;
 	int NextDirectTouchAction() const;
 	void UpdateButtons(const std::vector<IInput::CTouchFingerState> &vTouchFingerStates);
+	void EditButtons(const std::vector<IInput::CTouchFingerState> &vTouchFingerStates);
 	void ResetButtons();
 	void RenderButtons();
 	vec2 CalculateScreenSize() const;
@@ -560,6 +584,16 @@ private:
 	std::unique_ptr<CBindTouchButtonBehavior> ParseBindBehavior(const json_value *pBehaviorObject);
 	std::unique_ptr<CBindToggleTouchButtonBehavior> ParseBindToggleBehavior(const json_value *pBehaviorObject);
 	void WriteConfiguration(CJsonWriter *pWriter);
+	
+	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {});
+
+	CTouchButton *m_pSelectedButton = nullptr;
+	CTouchButton *m_pTmpButton = new CTouchButton(this);
+	CTouchButtonBehavior *m_pCachedBehavior = nullptr;
+	std::vector<bool> m_vVirtualVisibilities;
+
+	
+	void RenderButtonEditor();
 };
 
 #endif
