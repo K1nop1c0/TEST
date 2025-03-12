@@ -275,9 +275,9 @@ void CMenus::RenderGame(CUIRect MainView)
 			{
 				//Only render this when a button is selected.
 				MainView.HSplitTop(20.0f, nullptr, &MainView);
-				MainView.HSplitTop(230.0f, &TouchControlsEditor, &MainView);
-				MainView.Draw(ms_ColorTabbarActive, IGraphics::CORNER_ALL, 10.0f);
-				GameClient()->m_TouchControls.RenderTouchButtonEditor(MainView);
+				MainView.HSplitTop(230.0f, &TouchControlsEditor, &TouchButtonEditor);
+				TouchButtonEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_ALL, 10.0f);
+				GameClient()->m_TouchControls.RenderTouchButtonEditor(TouchButtonEditor);
 			}
 			else
 			{
@@ -494,7 +494,7 @@ void CMenus::RenderPlayers(CUIRect MainView)
 
 	// list background color
 	MainView.Margin(10.0f, &PlayerList);
-	PlayerList.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::, 10.0f);
+	PlayerList.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 10.0f);
 	PlayerList.Margin(10.0f, &PlayerList);
 
 	// headline
