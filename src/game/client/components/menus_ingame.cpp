@@ -238,6 +238,10 @@ void CMenus::RenderGame(CUIRect MainView)
 		if(DoButton_CheckBox(&s_TouchControlsEditCheckbox, Localize("Edit touch controls"), GameClient()->m_TouchControls.IsEditingActive(), &Button))
 		{
 			GameClient()->m_TouchControls.SetEditingActive(!GameClient()->m_TouchControls.IsEditingActive());
+			if(GameClient()->m_TouchControls.IsEditingActive())
+			{
+				GameClient()->m_TouchControls.ResetVirtualVisibilities();
+			}
 		}
 
 		ButtonBar2.VSplitRight(80.0f, &ButtonBar2, &Button);
@@ -266,7 +270,20 @@ void CMenus::RenderGame(CUIRect MainView)
 		if(GameClient()->m_TouchControls.IsEditingActive())
 		{
 			CUIRect TouchControlsEditor;
-			MainView.VMargin((MainView.w - 505.0f) / 2.0f, &TouchControlsEditor);
+			CUIRect TouchButtonEditor;
+			if(GameClient()->m_TouchControls.IsButtonSelected())
+			{
+				//Only render this when a button is selected.
+				MainView.HSplitTop(20.0f, nullptr, &MainView);
+				MainView.HSplitTop(230.0f, &TouchControlsEditor, &MainView);
+				MainView.Draw(ms_ColorTabbarActive, IGraphics::CORNER_ALL, 10.0f);
+				GameClient()->m_TouchControls.RenderTouchButtonEditor(MainView);
+			}
+			else
+			{
+				//No button selected, render it like the old days.
+				MainView.VMargin((MainView.w - 505.0f) / 2.0f, &TouchControlsEditor);
+			}
 			TouchControlsEditor.HMargin((TouchControlsEditor.h - 230.0f) / 2.0f, &TouchControlsEditor);
 			RenderTouchControlsEditor(TouchControlsEditor);
 		}
@@ -477,7 +494,7 @@ void CMenus::RenderPlayers(CUIRect MainView)
 
 	// list background color
 	MainView.Margin(10.0f, &PlayerList);
-	PlayerList.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 10.0f);
+	PlayerList.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::, 10.0f);
 	PlayerList.Margin(10.0f, &PlayerList);
 
 	// headline
