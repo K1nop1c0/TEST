@@ -2029,7 +2029,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 	}
 	else
 	{
-		m_pTmpButton = nullptr;
+		m_pCachedBehavior = nullptr;
 	}
 }
 
@@ -2047,7 +2047,7 @@ void CTouchControls::RenderButtonsWhileInEditor()
 			TouchButton.Render();
 		}
 	}
-	if(m_pTmpButton != nullptr)
+	if(m_pSelectedButton != nullptr)
 	{
 		if(m_pCachedBehavior == nullptr)
 			dbg_assert(false, "Nullptr Cached Behavior detected.");
