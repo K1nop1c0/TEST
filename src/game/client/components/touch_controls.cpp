@@ -70,8 +70,8 @@ CTouchControls::CTouchButton::CTouchButton(CTouchControls *pTouchControls) :
 	m_pTouchControls(pTouchControls),
 	m_UnitRect( {0, 0, 50000, 50000} ),
 	m_Shape(EButtonShape::RECT),
-	m_VisibilityCached(false),
-	m_pBehavior(nullptr)
+	m_pBehavior(nullptr),
+	m_VisibilityCached(false)
 {
 }
 
@@ -1486,10 +1486,6 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 
 std::unique_ptr<CTouchControls::CExtraMenuTouchButtonBehavior> CTouchControls::ParseExtraMenuBehavior(const json_value *pBehaviorObject)
 {
-	if(pBehaviorObject == nullptr)
-	{
-		return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
-	}
 	const json_value &BehaviorObject = *pBehaviorObject;
 	const json_value &MenuNumber = BehaviorObject["number"];
 	// TODO: Remove json_none backwards compatibility
@@ -1778,7 +1774,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 		if(BehaviorType == "bind")
 		{
 			m_EditBehaviorType = 0;
-			CBindTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior);
+			CBindTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
 			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
 			m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
 			m_InputCommand.Set(CastedBehavior->m_Command.c_str());
@@ -1787,7 +1783,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 		else if(BehaviorType == "bind-toggle")
 		{
 			m_EditBehaviorType = 1;
-			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior);
+			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
 			m_vCachedCommands = CastedBehavior->m_vCommands;
 			m_EditCommandNumber = 0;
 			if(!m_vCachedCommands.empty())
@@ -1809,7 +1805,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 
 		if(m_PredefinedBehaviorType == 0)
 		{
-			CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior);
+			CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
 			m_CachedNumber = CastedBehavior->m_Number;
 		}
 	}
@@ -2003,9 +1999,9 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 				{
 					//This is harder than it looks. This is still not the best solution.
 					if((*s_ShownRect).m_X + (*s_ShownRect).m_W - Rect.m_X > (*s_ShownRect).m_Y + (*s_ShownRect).m_H - Rect.m_Y)
-						BiggestH = std::min(Rect.m_Y - (*s_ShownRect).m_Y, BiggestH);
+						BiggestH = std::min(Rect.m_Y - (*s_ShownRect).m_Y, BiggestH.value_or(1000000));
 					else
-						BiggestW = std::min(Rect.m_X - (*s_ShownRect).m_X, BiggestW);
+						BiggestW = std::min(Rect.m_X - (*s_ShownRect).m_X, BiggestW.value_or(1000000));
 				}
 			}
 			(*s_ShownRect).m_W = BiggestW.value_or((*s_ShownRect).m_W);
@@ -2093,7 +2089,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			return std::isdigit(static_cast<unsigned char>(Value));
 		});
 		if(!IsDigit)
-			m_InputX.Set(s_SavedX);
+			m_InputX.Set(s_SavedX.c_str());
 		s_SavedX = m_InputX.GetString();
 		m_UnsavedChanges = true;
 	}
@@ -2108,7 +2104,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			return std::isdigit(static_cast<unsigned char>(Value));
 		});
 		if(!IsDigit)
-			m_InputY.Set(s_SavedY);
+			m_InputY.Set(s_SavedY.c_str());
 		s_SavedY = m_InputY.GetString();
 		m_UnsavedChanges = true;
     }
@@ -2122,7 +2118,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			return std::isdigit(static_cast<unsigned char>(Value));
 		});
 		if(!IsDigit)
-			m_InputY.Set(s_SavedW);
+			m_InputY.Set(s_SavedW.c_str());
 		s_SavedW = m_InputW.GetString();
 		m_UnsavedChanges = true;
     }
@@ -2136,7 +2132,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			return std::isdigit(static_cast<unsigned char>(Value));
 		});
 		if(!IsDigit)
-			m_InputH.Set(s_SavedH);
+			m_InputH.Set(s_SavedH.c_str());
 		s_SavedH = m_InputH.GetString();
 		m_UnsavedChanges = true;
     }
@@ -2231,7 +2227,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		if(Ui()->DoButton_Menu(m_IncreaseButton, &s_IncreaseButton, IncreaseLabelFunc, &A, Props))
 		{
 			m_EditCommandNumber ++;
-			if(m_vCachedCommands.size() < m_EditCommandNumber + 1)
+			if((int)m_vCachedCommands.size() < m_EditCommandNumber + 1)
 			{
 				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
 				m_UnsavedChanges = true;
@@ -2245,7 +2241,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			const auto DeleteIt = m_vCachedCommands.begin() + m_EditCommandNumber;
 			m_vCachedCommands.erase(DeleteIt);
-			if(m_EditCommandNumber + 1 > m_vCachedCommands.size())
+			if(m_EditCommandNumber + 1 > (int)m_vCachedCommands.size())
 			{
 				m_EditCommandNumber --;
 				if(m_EditCommandNumber < 0)
@@ -2313,8 +2309,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 
 		B.VSplitLeft(B.w * 2 / 3.0f, &A, &B);
-		Ui()->DoLabel(&A, m_CachedNumber + 1, 16.0f, TEXTALIGN_ML);
-		
+		Ui()->DoLabel(&A, std::to_string(m_CachedNumber + 1), 16.0f, TEXTALIGN_ML);
+
 		const auto &&ExtraMenuIncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
 		static CButtonContainer s_ExtraMenuIncreaseButton;
 		if(Ui()->DoButton_Menu(m_ExtraMenuIncreaseButton, &s_ExtraMenuIncreaseButton, ExtraMenuIncreaseLabelFunc, &B, Props))
@@ -2337,7 +2333,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
 		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
 		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, m_vCachedCommands[0].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
+		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)m_vCachedCommands[0].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
 		if(NewButtonLabelType != m_vCachedCommands[0].m_LabelType)
 		{
 			m_vCachedCommands[0].m_LabelType = NewButtonLabelType;
@@ -2364,7 +2360,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
 		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
 		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, m_vCachedCommands[m_EditCommandNumber].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
+		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)m_vCachedCommands[m_EditCommandNumber].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
 		if(NewButtonLabelType != m_vCachedCommands[m_EditCommandNumber].m_LabelType)
 		{
 			m_vCachedCommands[m_EditCommandNumber].m_LabelType = NewButtonLabelType;
@@ -2380,7 +2376,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	A.VMargin((A.w - 15.0f) / 2.0f, &A);
 	const auto &&ConfirmButtonLabelFunc = []() { return "Save"; };
 	static CButtonContainer s_ConfirmButton;
-	if(Ui()->DoButton_Menu(m_ConrifmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
+	if(Ui()->DoButton_Menu(m_ConfirmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
 	{
 		//Save the cached config to the selected button.
 		m_pSelectedButton->m_UnitRect.m_X = std::stoi(m_InputX.GetString());
@@ -2391,16 +2387,19 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton->m_Shape = m_CachedShape;
 		if(m_EditBehaviorType == 0)
 		{
-			m_pSelectedButton->m_pBehavior = std::move(std::make_unique<CBindTouchButtonBehavior>(m_vCachedCommands[0].m_Label.c_str(), m_vCachedCommands[0].m_LabelType, m_vCachedCommands[0].m_Command.c_str()));
+			m_pSelectedButton->m_pBehavior = std::make_unique<CBindTouchButtonBehavior>(m_vCachedCommands[0].m_Label.c_str(), m_vCachedCommands[0].m_LabelType, m_vCachedCommands[0].m_Command.c_str());
 		}
 		else if(m_EditBehaviorType == 1)
 		{
 			std::vector<CBindToggleTouchButtonBehavior::CCommand> vMovingBehavior = m_vCachedCommands;
-			m_pSelectedButton->m_pBehavior = std::move(std::make_unique<CBindToggleTouchButtonBehavior>(std::move(vMovingBehavior)));
+			m_pSelectedButton->m_pBehavior = std::make_unique<CBindToggleTouchButtonBehavior>(std::move(vMovingBehavior));
 		}
 		else if(m_EditBehaviorType == 2)
 		{
-			m_pSelectedButton->m_pBehavior = std::move(BEHAVIOR_FACTORIES[m_PredefinedBehaviorType].m_Factory(nullptr));
+			if(m_PredefinedBehaviorType != 0)
+				m_pSelectedButton->m_pBehavior = BEHAVIOR_FACTORIES[m_PredefinedBehaviorType].m_Factory(nullptr);
+			else
+				m_pSelectedButton->m_pBehavior = std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
 		}
 		m_UnsavedChanges = false;
 	}
@@ -2430,7 +2429,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	if(Ui()->DoButton_Menu(m_AddNewButton, &s_AddNewButton, AddNewButtonLabelFunc, &A))
 	{
 		CTouchButton NewButton(this);
-		NewButton.m_pBehavior = std::move(std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, ""));
+		NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
 		m_vTouchButtons.push_back(std::move(NewButton));
 		m_pSelectedButton = &(m_vTouchButtons.back());
 	}
