@@ -1,5 +1,7 @@
 #include "touch_controls.h"
+#include "engine/textrender.h"
 
+#include <algorithm>
 #include <base/log.h>
 #include <base/system.h>
 
@@ -19,7 +21,10 @@
 #include <game/client/components/voting.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
+#include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
+#include <memory>
+#include <string>
 
 using namespace std::chrono_literals;
 
@@ -42,17 +47,18 @@ static constexpr int BUTTON_SIZE_SCALE = 1000000;
 static constexpr int BUTTON_SIZE_MINIMUM = 50000;
 static constexpr int BUTTON_SIZE_MAXIMUM = 500000;
 
+//When *pBehavior is nullptr, ParseExtraMenuBehavior will use cached number.
 const CTouchControls::CBehaviorFactory CTouchControls::BEHAVIOR_FACTORIES[10] = {
-	{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }},
 	{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return ParseExtraMenuBehavior(pBehavior); }},
-	{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
-	{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
-	{CTouchControls::CSwapActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
-	{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
-	{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
-	{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
+	{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
 	{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
-	{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }}};
+	{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
+	{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
+	{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
+	{CTouchControls::CSwapActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
+	{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
+	{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
+	{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
 
 /* This is required for the localization script to find the labels of the default bind buttons specified in the configuration file:
 Localizable("Move left") Localizable("Move right") Localizable("Jump") Localizable("Prev. weapon") Localizable("Next weapon")
@@ -62,7 +68,10 @@ Localizable("Vote yes") Localizable("Vote no") Localizable("Toggle dummy")
 
 CTouchControls::CTouchButton::CTouchButton(CTouchControls *pTouchControls) :
 	m_pTouchControls(pTouchControls),
-	m_VisibilityCached(false)
+	m_UnitRect( {0, 0, 50000, 50000} ),
+	m_Shape(EButtonShape::RECT),
+	m_VisibilityCached(false),
+	m_pBehavior(nullptr)
 {
 }
 
@@ -254,7 +263,7 @@ void CTouchControls::CTouchButton::Render() const
 	{
 		const vec2 Center = m_ScreenRect.Center();
 		const float Radius = minimum(m_ScreenRect.w, m_ScreenRect.h) / 2.0f;
-		m_pTouchControls.Graphics()->TextureClear();
+		m_pTouchControls->Graphics()->TextureClear();
 		m_pTouchControls->Graphics()->QuadsBegin();
 		m_pTouchControls->Graphics()->SetColor(ButtonColor);
 		m_pTouchControls->Graphics()->DrawCircle(Center.x, Center.y, Radius, maximum(round_truncate(Radius / 4.0f) & ~1, 32));
@@ -792,13 +801,20 @@ bool CTouchControls::LoadConfigurationFromFile(int StorageType)
 
 	const bool Result = ParseConfiguration(pFileData, FileLength);
 	free(pFileData);
+	if(Result)
+		m_pSelectedButton = nullptr;
+
 	return Result;
 }
 
 bool CTouchControls::LoadConfigurationFromClipboard()
 {
 	std::string Clipboard = Input()->GetClipboardText();
-	return ParseConfiguration(Clipboard.c_str(), Clipboard.size());
+	bool Result = ParseConfiguration(Clipboard.c_str(), Clipboard.size());
+	if(Result)
+		m_pSelectedButton = nullptr;
+
+	return Result;
 }
 
 bool CTouchControls::SaveConfigurationToFile()
@@ -1456,7 +1472,7 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'id' must specify a string", CPredefinedTouchButtonBehavior::BEHAVIOR_TYPE);
 		return nullptr;
 	}
-
+	for(const CBehaviorFactory &BehaviorFactory : BEHAVIOR_FACTORIES)
 	{
 		if(str_comp(PredefinedId.u.string.ptr, BehaviorFactory.m_pId) == 0)
 		{
@@ -1470,6 +1486,10 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 
 std::unique_ptr<CTouchControls::CExtraMenuTouchButtonBehavior> CTouchControls::ParseExtraMenuBehavior(const json_value *pBehaviorObject)
 {
+	if(pBehaviorObject == nullptr)
+	{
+		return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
+	}
 	const json_value &BehaviorObject = *pBehaviorObject;
 	const json_value &MenuNumber = BehaviorObject["number"];
 	// TODO: Remove json_none backwards compatibility
@@ -1724,23 +1744,75 @@ void CTouchControls::ResetVirtualVisibilities()
 }
 
 //This is called when the Touch button editor is rendered, the below one. Used for updating the CLineInput.
-void CTouchControls::OnOpenTouchButtonEditor()
+void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 {
 	static CTouchButton *s_pLastSelectedButton = nullptr;
-	
 
-	if(s_pLastSelectedButton != nullptr && s_pLastSelectedButton == m_pSelectedButton)
+	//If selected button changes, update the cached information in editor. You can also force changing.
+	if(s_pLastSelectedButton != nullptr && s_pLastSelectedButton == m_pSelectedButton && !Force)
 	{
 		s_pLastSelectedButton = m_pSelectedButton;
 		return;
 	}
+
+	//Reset all cached values.
+	m_EditBehaviorType = 0;
+	m_PredefinedBehaviorType = 0;
+	m_CachedNumber = 0;
+	m_EditCommandNumber = 0;
+	m_InputCommand.Set("");
+	m_InputLabel.Set("");
+	m_vCachedCommands.clear();
+
+	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
 	m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
 	m_InputY.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_Y).c_str());
 	m_InputW.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_W).c_str());
 	m_InputH.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_H).c_str());
-
 	m_CachedShape = m_pSelectedButton->m_Shape;
 
+	//These are behavior values.
+	if(m_pSelectedButton->m_pBehavior != nullptr)
+	{
+		std::string BehaviorType = m_pSelectedButton->m_pBehavior->GetBehaviorType();
+		if(BehaviorType == "bind")
+		{
+			m_EditBehaviorType = 0;
+			CBindTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior);
+			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
+			m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
+			m_InputCommand.Set(CastedBehavior->m_Command.c_str());
+			m_InputLabel.Set(CastedBehavior->m_Label.c_str());
+		}
+		else if(BehaviorType == "bind-toggle")
+		{
+			m_EditBehaviorType = 1;
+			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior);
+			m_vCachedCommands = CastedBehavior->m_vCommands;
+			m_EditCommandNumber = 0;
+			if(!m_vCachedCommands.empty())
+			{
+				m_InputCommand.Set(m_vCachedCommands[0].m_Command.c_str());
+				m_InputLabel.Set(m_vCachedCommands[0].m_Label.c_str());
+			}
+		}
+		else if(BehaviorType == "predefined")
+			m_EditBehaviorType = 2;
+		else //Empty
+		 	dbg_assert(false, "Detected out of bound value in m_EditBehaviorType");
+
+		const char *PredefinedType = m_pSelectedButton->m_pBehavior->GetPredefinedType();
+		if(PredefinedType == nullptr)
+			m_PredefinedBehaviorType = 0;
+		else
+			for(m_PredefinedBehaviorType = 0; PredefinedType != BEHAVIOR_FACTORIES[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
+
+		if(m_PredefinedBehaviorType == 0)
+		{
+			CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior);
+			m_CachedNumber = CastedBehavior->m_Number;
+		}
+	}
 	s_pLastSelectedButton = m_pSelectedButton;
 }
 
@@ -1930,12 +2002,10 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			    if(!(Rect.m_X + Rect.m_W <= (*s_ShownRect).m_X || (*s_ShownRect).m_X + (*s_ShownRect).m_W <= Rect.m_X || Rect.m_Y + Rect.m_H <= (*s_ShownRect).m_Y || (*s_ShownRect).m_Y + (*s_ShownRect).m_H <= Rect.m_Y))
 				{
 					//This is harder than it looks. This is still not the best solution.
-					BiggestW = Rect.m_X - (*s_ShownRect).m_X;
-					BiggestH = Rect.m_Y - (*s_ShownRect).m_Y;
 					if((*s_ShownRect).m_X + (*s_ShownRect).m_W - Rect.m_X > (*s_ShownRect).m_Y + (*s_ShownRect).m_H - Rect.m_Y)
-						BiggestW = std::nullopt;
+						BiggestH = std::min(Rect.m_Y - (*s_ShownRect).m_Y, BiggestH);
 					else
-					 	BiggestH = std::nullopt;
+						BiggestW = std::min(Rect.m_X - (*s_ShownRect).m_X, BiggestW);
 				}
 			}
 			(*s_ShownRect).m_W = BiggestW.value_or((*s_ShownRect).m_W);
@@ -1982,131 +2052,394 @@ void CTouchControls::RenderButtonsWhileInEditor()
 		}
 	}
 	if(m_pTmpButton != nullptr)
+	{
+		if(m_pCachedBehavior == nullptr)
+			dbg_assert(false, "Nullptr Cached Behavior detected.");
 		m_pTmpButton->Render();
+	}
 }
 
 void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 {
 	//Update LineInputs and others if Selected button changes.
 	OnOpenTouchButtonEditor();
-
-	char EditX[16], EditY[16], EditW[16], EditH[16];
+	//Delete if user inputs value that is not digits.
 	static std::string s_SavedX = "0", s_SavedY = "0", s_SavedW = "50000", s_SavedH = "50000";
+	static bool IsInited = 0;
+	if(!IsInited)
+	{
+		m_IncreaseButton.Init(Ui(), -1);
+		m_DecreaseButton.Init(Ui(), -1);
+		m_DeleteButton.Init(Ui(), -1);
+		m_ExtraMenuIncreaseButton.Init(Ui(), -1);
+		m_ExtraMenuDecreaseButton.Init(Ui(), -1);
+		m_AddNewButton.Init(Ui(), -1);
+		m_RemoveButton.Init(Ui(), -1);
+		m_ConfirmButton.Init(Ui(), -1);
+		m_CancelButton.Init(Ui(), -1);
+	}
 
     CUIRect Left, Right, A, B;
-    MainView.VSplitLeft(MainView.w / 2, &Left, &Right);
+    MainView.VSplitLeft(MainView.w / 2.0f, &Left, &Right);
     Left.Margin(10.0f, &Left);
     Right.Margin(10.0f, &Right);
     CUIRect EditBox;
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
-    if(Ui()->DoClearableEditBox(&InputX, &EditBox, 12.0f))
+    if(Ui()->DoClearableEditBox(&m_InputX, &EditBox, 12.0f))
     {
-        std::string TpString;
-        for(int Check = 0; EditX[Check] != '\0' && Check < 6; Check ++)
-            if('0' <= EditX[Check] && EditX[Check] <= '9')
-                TpString += EditX[Check];
-            else
-            {
-                str_copy(EditX, s_SavedX.c_str());
-                TpString = s_SavedX;
-                break;
-            }
-
-		if(std::stoi(TpString) + std::stoi(s_SavedW) > 1000000)
-			s_SavedX = std::to_string(1000000 - std::stoi(s_SavedW));
-		else
-            s_SavedX = TpString;
-	    str_copy(EditX, s_SavedX.c_str());
+        std::string InputValue = m_InputX.GetString();
+		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
+			return std::isdigit(static_cast<unsigned char>(Value));
+		});
+		if(!IsDigit)
+			m_InputX.Set(s_SavedX);
+		s_SavedX = m_InputX.GetString();
+		m_UnsavedChanges = true;
 	}
+
+	//Auto check if the input value contains char that is not digit. If so delete it.
 	Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
-	if(Ui()->DoClearableEditBox(&InputY, &EditBox, 10.0f))
+	if(Ui()->DoClearableEditBox(&m_InputY, &EditBox, 10.0f))
     {
-        std::string TpString;
-        for(int Check = 0; EditY[Check] != '\0' && Check < 6; Check ++)
-            if('0' <= EditY[Check] && EditY[Check] <= '9')
-                TpString += EditY[Check];
-            else
-            {
-                str_copy(EditY, s_SavedY.c_str());
-                TpString = s_SavedY;
-                break;
-            }
-        if(std::stoi(TpString) + std::stoi(s_SavedH) > 1000000)
-            s_SavedY = std::to_string(1000000 - std::stoi(s_SavedH));
-        else
-            s_SavedY = TpString;
-        str_copy(EditY, s_SavedY.c_str());
+        std::string InputValue = m_InputY.GetString();
+		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
+			return std::isdigit(static_cast<unsigned char>(Value));
+		});
+		if(!IsDigit)
+			m_InputY.Set(s_SavedY);
+		s_SavedY = m_InputY.GetString();
+		m_UnsavedChanges = true;
     }
+
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
-    if(Ui()->DoClearableEditBox(&InputW, &EditBox, 10.0f))
+    if(Ui()->DoClearableEditBox(&m_InputW, &EditBox, 10.0f))
     {
-        std::string TpString;
-        for(int Check = 0; EditW[Check] != '\0' && Check < 6; Check ++)
-            if('0' <= EditW[Check] && EditW[Check] <= '9')
-                TpString += EditW[Check];
-            else
-            {
-                str_copy(EditW, s_SavedW.c_str());
-                TpString = s_SavedW;
-                break;
-            }
-        if(std::stoi(TpString) + std::stoi(s_SavedX) > 1000000)
-            s_SavedW = std::to_string(1000000 - std::stoi(s_SavedX));
-        else if(std::stoi(s_SavedW) < 50000)
-            s_SavedW = std::to_string(50000);
-        else
-            s_SavedW = TpString;
-        str_copy(EditW, s_SavedW.c_str());
+        std::string InputValue = m_InputW.GetString();
+		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
+			return std::isdigit(static_cast<unsigned char>(Value));
+		});
+		if(!IsDigit)
+			m_InputY.Set(s_SavedW);
+		s_SavedW = m_InputW.GetString();
+		m_UnsavedChanges = true;
     }
+
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
-    if(Ui()->DoClearableEditBox(&InputH, &EditBox, 10.0f))
+    if(Ui()->DoClearableEditBox(&m_InputH, &EditBox, 10.0f))
     {
-        std::string TpString;
-        for(int Check = 0; EditH[Check] != '\0' && Check < 6; Check ++)
-            if('0' <= EditH[Check] && EditH[Check] <= '9')
-                TpString += EditH[Check];
-            else
-            {
-                str_copy(EditH, s_SavedH.c_str());
-                TpString = s_SavedH;
-                break;
-            }
-        if(std::stoi(TpString) + std::stoi(s_SavedH) > 1000000)
-            s_SavedH = std::to_string(1000000 - std::stoi(s_SavedY));
-        else if(std::stoi(s_SavedH) < 50000)
-            s_SavedH = std::to_string(50000);
-        else
-            s_SavedH = TpString;
-        str_copy(EditH, s_SavedH.c_str());
+        std::string InputValue = m_InputH.GetString();
+		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
+			return std::isdigit(static_cast<unsigned char>(Value));
+		});
+		if(!IsDigit)
+			m_InputH.Set(s_SavedH);
+		s_SavedH = m_InputH.GetString();
+		m_UnsavedChanges = true;
     }
 	
 	//Drop down menu for shapes
 	Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
-	EditBox.VSplitLeft(EditBox.w / 2, &A, &B);
-	A.VMargin(10.0f, &A);
-	B.VMargin(10.0f, &B);
+	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
+	A.VMargin(5.0f, &A);
+	B.VMargin(5.0f, &B);
 	Ui()->DoLabel(&A, "Shape:", 16.0f, TEXTALIGN_ML);
-	const EButtonShape OldButtonShape = m_CachedShape;
 	static CUi::SDropDownState s_ButtonShapeDropDownState;
 	static CScrollRegion s_ButtonShapeDropDownScrollRegion;
 	s_ButtonShapeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonShapeDropDownScrollRegion;
-	const EButtonShape NewButtonShape = (EButtonShape)Ui()->DoDropDown(&B, (int)OldButtonShape, SHAPE_NAMES, std::size(SHAPE_NAMES), s_ButtonShapeDropDownState);
-	if(NewButtonShape != OldButtonShape)
+	const char* Shapes[] = {"Rect", "Circle"};
+	const EButtonShape NewButtonShape = (EButtonShape)Ui()->DoDropDown(&B, (int)OldButtonShape, Shapes, std::size(Shapes), s_ButtonShapeDropDownState);
+	if(NewButtonShape != m_CachedShape)
 	{
 		m_CachedShape = NewButtonShape;
+		m_UnsavedChanges = true;
 	}
 
-	// Hi, it's BEHAVIOR time !!!!!!!!!!
+	// Behaviors
+	const char* Behaviors[] = {"Bind", "Bind Toggle", "Predefined"};
+	// The predefined factory has been changed. It now has the same behavior order as this array.
+	const char* Predefineds[] = {"Extra Menu", "Joystick Hook", "Joystick Fire", "Joystick Aim", "Joystick Action", 
+								 "Use Action", "Swap Action", "Spectate", "Emoticon", "Ingame Menu"};
+	const char* LabelTypes[] = {"Plain", "Localized", "Icon"};
+
 	Right.HSplitTop(25.0f, &EditBox, &Right);
 	Right.HSplitTop(5.0f, nullptr, &Right);
-	EditBox.VSplitLeft(EditBox.w / 2, &A, &B);
-	A.VMargin(10.0f, &A);
-	B.VMargin(10.0f, &B);
+	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
+	A.VMargin(5.0f, &A);
+	B.VMargin(5.0f, &B);
 	Ui()->DoLabel(&A, "Behavior Type:", 16.0f, TEXTALIGN_ML);
-	
+	static CUi::SDropDownState s_ButtonBehaviorDropDownState;
+	static CScrollRegion s_ButtonBehaviorDropDownScrollRegion;
+	s_ButtonBehaviorDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonBehaviorDropDownScrollRegion;
+	const int NewButtonBehavior = Ui()->DoDropDown(&B, m_EditBehaviorType, Behaviors, std::size(Behaviors), s_ButtonBehaviorDropDownState);
+	if(NewButtonBehavior != m_EditBehaviorType)
+	{
+		m_EditBehaviorType = NewButtonBehavior;
+		if(m_EditBehaviorType == 0)
+		{
+			m_InputLabel.Set(m_vCachedCommands[0].m_Label.c_str());
+			m_InputCommand.Set(m_vCachedCommands[0].m_Command.c_str());
+		}
+		if(m_EditBehaviorType == 1)
+		{
+			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+		}
+		m_UnsavedChanges = true;
+	}
+
+	Right.HSplitTop(25.0f, &EditBox, &Right);
+	Right.HSplitTop(5.0f, nullptr, &Right);
+	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
+	A.VMargin(5.0f, &A);
+	B.VMargin(5.0f, &B);
+	if(m_EditBehaviorType == 0)
+	{
+		Ui()->DoLabel(&A, "Command:", 16.0f, TEXTALIGN_ML);
+		if(Ui()->DoClearableEditBox(&m_InputCommand, &B, 10.0f))
+		{
+			m_vCachedCommands[0].m_Command = m_InputCommand.GetString();
+			m_UnsavedChanges = true;
+		}
+	}
+	else if(m_EditBehaviorType == 1)
+	{
+		Ui()->DoLabel(&A, "Number:", 16.0f, TEXTALIGN_ML);
+		// Decrease Button, increase button and delete button share 1/2 width of B, the rest is for number. 1/6, 1/2, 1/6, 1/6.
+		B.VSplitLeft(B.w / 6, &A, &B);
+		SMenuButtonProperties Props;
+		Props.m_UseIconFont = true;
+		const auto &&DecreaseLabelFunc = []() { return FontIcons::FONT_ICON_MINUS; };
+		static CButtonContainer s_DecreaseButton;
+		if(Ui()->DoButton_Menu(m_DecreaseButton, &s_DecreaseButton, DecreaseLabelFunc, &A, Props))
+		{
+			if(m_EditCommandNumber != 0)
+			m_EditCommandNumber --;
+			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+		}
+		B.VSplitLeft(B.w * 0.6f, &A, &B);
+		//m_EditCommandNumber counts from 0. But shown from 1.
+		Ui()->DoLabel(&A, std::to_string(m_EditCommandNumber + 1).c_str(), 16.0f, TEXTALIGN_ML);
+		B.VSplitLeft(B.w / 2.0f, &A, &B);
+		const auto &&IncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
+		static CButtonContainer s_IncreaseButton;
+		if(Ui()->DoButton_Menu(m_IncreaseButton, &s_IncreaseButton, IncreaseLabelFunc, &A, Props))
+		{
+			m_EditCommandNumber ++;
+			if(m_vCachedCommands.size() < m_EditCommandNumber + 1)
+			{
+				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
+				m_UnsavedChanges = true;
+			}
+			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+		}
+		const auto &&DeleteLabelFunc = []() { return FontIcons::FONT_ICON_TRASH; };
+		static CButtonContainer s_DeleteButton;
+		if(Ui()->DoButton_Menu(m_DeleteButton, &s_DeleteButton, DeleteLabelFunc, &B, Props))
+		{
+			const auto DeleteIt = m_vCachedCommands.begin() + m_EditCommandNumber;
+			m_vCachedCommands.erase(DeleteIt);
+			if(m_EditCommandNumber + 1 > m_vCachedCommands.size())
+			{
+				m_EditCommandNumber --;
+				if(m_EditCommandNumber < 0)
+				dbg_assert(false, "Detected m_EditCommandNumber < 0.");
+			}
+			while(m_vCachedCommands.size() < 2)
+				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
+			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+			m_UnsavedChanges = true;
+		}
+	}
+	else if(m_EditBehaviorType == 2)
+	{
+		Ui()->DoLabel(&A, "Type:", 16.0f, TEXTALIGN_ML);
+		static CUi::SDropDownState s_ButtonPredefinedDropDownState;
+		static CScrollRegion s_ButtonPredefinedDropDownScrollRegion;
+		s_ButtonPredefinedDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonPredefinedDropDownScrollRegion;
+		const int NewPredefined = Ui()->DoDropDown(&B, m_PredefinedBehaviorType, Predefineds, std::size(Predefineds), s_ButtonPredefinedDropDownState);
+		if(NewPredefined != m_PredefinedBehaviorType)
+		{
+			m_PredefinedBehaviorType = NewPredefined;
+			m_UnsavedChanges = true;
+		}
+	}
+	Right.HSplitTop(25.0f, &EditBox, &Right);
+	Right.HSplitTop(5.0f, nullptr, &Right);
+	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
+	A.VMargin(5.0f, &A);
+	B.VMargin(5.0f, &B);
+	if(m_EditBehaviorType == 0)
+	{
+		Ui()->DoLabel(&A, "Label:", 16.0f, TEXTALIGN_ML);
+		if(Ui()->DoClearableEditBox(&m_InputLabel, &B, 10.0f))
+		{
+			m_vCachedCommands[0].m_Label = m_InputLabel.GetString();
+			m_UnsavedChanges = true;
+		}
+	}
+	else if(m_EditBehaviorType == 1)
+	{
+		Ui()->DoLabel(&A, "Command:", 16.0f, TEXTALIGN_ML);
+		if(Ui()->DoClearableEditBox(&m_InputCommand, &B, 10.0f))
+		{
+			m_vCachedCommands[m_EditCommandNumber].m_Command = m_InputCommand.GetString();
+			m_UnsavedChanges = true;
+		}
+	}
+	else if(m_EditBehaviorType == 2 && m_PredefinedBehaviorType == 0) // Extra menu type, needs to input number.
+	{
+		//Increase & Decrease button share 1/2 width, the rest is for label.
+		EditBox.VSplitLeft(EditBox.w / 4, &A, &B);
+		SMenuButtonProperties Props;
+		Props.m_UseIconFont = true;
+		const auto &&ExtraMenuDecreaseLabelFunc = []() { return FontIcons::FONT_ICON_MINUS; };
+		static CButtonContainer s_ExtraMenuDecreaseButton;
+		if(Ui()->DoButton_Menu(m_ExtraMenuDecreaseButton, &s_ExtraMenuDecreaseButton, ExtraMenuDecreaseLabelFunc, &A, Props))
+		{
+			if(m_CachedNumber > 0)
+			{
+				// Menu Number also counts from 1, but written as 0.
+				m_CachedNumber --;
+				m_UnsavedChanges = true;
+			}
+		}
+
+		B.VSplitLeft(B.w * 2 / 3.0f, &A, &B);
+		Ui()->DoLabel(&A, m_CachedNumber + 1, 16.0f, TEXTALIGN_ML);
+		
+		const auto &&ExtraMenuIncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
+		static CButtonContainer s_ExtraMenuIncreaseButton;
+		if(Ui()->DoButton_Menu(m_ExtraMenuIncreaseButton, &s_ExtraMenuIncreaseButton, ExtraMenuIncreaseLabelFunc, &B, Props))
+		{
+			if(m_CachedNumber < 4)
+			{
+				m_CachedNumber ++;
+				m_UnsavedChanges = true;
+			}
+		}
+	}
+	Right.HSplitTop(25.0f, &EditBox, &Right);
+	Right.HSplitTop(5.0f, nullptr, &Right);
+	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
+	A.VMargin(5.0f, &A);
+	B.VMargin(5.0f, &B);
+	if(m_EditBehaviorType == 0)
+	{
+		Ui()->DoLabel(&A, "Label type:", 16.0f, TEXTALIGN_ML);
+		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
+		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
+		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
+		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, m_vCachedCommands[0].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
+		if(NewButtonLabelType != m_vCachedCommands[0].m_LabelType)
+		{
+			m_vCachedCommands[0].m_LabelType = NewButtonLabelType;
+			m_UnsavedChanges = true;
+		}
+	}
+	else if(m_EditBehaviorType == 1)
+	{
+		Ui()->DoLabel(&A, "Label:", 16.0f, TEXTALIGN_ML);
+		if(Ui()->DoClearableEditBox(&m_InputLabel, &B, 10.0f))
+		{
+			m_vCachedCommands[m_EditCommandNumber].m_Label = m_InputLabel.GetString();
+			m_UnsavedChanges = true;
+		}
+	}
+	Right.HSplitTop(25.0f, &EditBox, &Right);
+	Right.HSplitTop(5.0f, nullptr, &Right);
+	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
+	A.VMargin(5.0f, &A);
+	B.VMargin(5.0f, &B);
+	if(m_EditBehaviorType == 1)
+	{
+		Ui()->DoLabel(&A, "Label type:", 16.0f, TEXTALIGN_ML);
+		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
+		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
+		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
+		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, m_vCachedCommands[m_EditCommandNumber].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
+		if(NewButtonLabelType != m_vCachedCommands[m_EditCommandNumber].m_LabelType)
+		{
+			m_vCachedCommands[m_EditCommandNumber].m_LabelType = NewButtonLabelType;
+			m_UnsavedChanges = true;
+		}
+	}
+	//Combine left and right together.
+	Left.w += Right.w;
+	Left.HSplitTop(15.0f, &EditBox, &Left);
+	Left.HSplitTop(5.0f, nullptr, &Left);
+	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
+	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
+	A.VMargin((A.w - 15.0f) / 2.0f, &A);
+	const auto &&ConfirmButtonLabelFunc = []() { return "Save"; };
+	static CButtonContainer s_ConfirmButton;
+	if(Ui()->DoButton_Menu(m_ConrifmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
+	{
+		//Save the cached config to the selected button.
+		m_pSelectedButton->m_UnitRect.m_X = std::stoi(m_InputX.GetString());
+		m_pSelectedButton->m_UnitRect.m_Y = std::stoi(m_InputY.GetString());
+		m_pSelectedButton->m_UnitRect.m_W = std::stoi(m_InputW.GetString());
+		m_pSelectedButton->m_UnitRect.m_H = std::stoi(m_InputH.GetString());
+		m_pSelectedButton->UpdateScreenFromUnitRect();
+		m_pSelectedButton->m_Shape = m_CachedShape;
+		if(m_EditBehaviorType == 0)
+		{
+			m_pSelectedButton->m_pBehavior = std::move(std::make_unique<CBindTouchButtonBehavior>(m_vCachedCommands[0].m_Label.c_str(), m_vCachedCommands[0].m_LabelType, m_vCachedCommands[0].m_Command.c_str()));
+		}
+		else if(m_EditBehaviorType == 1)
+		{
+			std::vector<CBindToggleTouchButtonBehavior::CCommand> vMovingBehavior = m_vCachedCommands;
+			m_pSelectedButton->m_pBehavior = std::move(std::make_unique<CBindToggleTouchButtonBehavior>(std::move(vMovingBehavior)));
+		}
+		else if(m_EditBehaviorType == 2)
+		{
+			m_pSelectedButton->m_pBehavior = std::move(BEHAVIOR_FACTORIES[m_PredefinedBehaviorType].m_Factory(nullptr));
+		}
+		m_UnsavedChanges = false;
+	}
+
+	EditBox.VSplitLeft(EditBox.w * 2.0f / 3.0f, &A, &B);
+	if(m_UnsavedChanges)
+	{
+		TextRender()->TextColor(ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f));
+		Ui()->DoLabel(&A, Localize("Unsaved changes"), 10.0f, TEXTALIGN_MC);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
+	}
+	B.VMargin((B.w - 15.0f) / 2.0f, &B);
+	const auto &&CancelButtonLabelFunc = []() { return "Cancel"; };
+	static CButtonContainer s_CancelButton;
+	if(Ui()->DoButton_Menu(m_CancelButton, &s_CancelButton, CancelButtonLabelFunc, &B))
+	{
+		OnOpenTouchButtonEditor(true);
+		m_UnsavedChanges = false;
+	}
+
+	Left.HSplitTop(15.0f, &EditBox, &Left);
+	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
+	A.VMargin((A.w - 150.0f) / 2.0f, &A);
+	B.VMargin((B.w - 150.0f) / 2.0f, &B);
+	const auto &&AddNewButtonLabelFunc = []() { return "New Button"; };
+	static CButtonContainer s_AddNewButton;
+	if(Ui()->DoButton_Menu(m_AddNewButton, &s_AddNewButton, AddNewButtonLabelFunc, &A))
+	{
+		CTouchButton NewButton(this);
+		NewButton.m_pBehavior = std::move(std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, ""));
+		m_vTouchButtons.push_back(std::move(NewButton));
+		m_pSelectedButton = &(m_vTouchButtons.back());
+	}
+	const auto &&RemoveButtonLabelFunc = []() { return "Delete Button"; };
+	static CButtonContainer s_RemoveButton;
+	if(Ui()->DoButton_Menu(m_RemoveButton, &s_RemoveButton, RemoveButtonLabelFunc, &B))
+	{
+		auto DeleteIt = m_vTouchButtons.begin() + (m_pSelectedButton - &m_vTouchButtons[0]);
+		m_vTouchButtons.erase(DeleteIt);
+		m_pSelectedButton = nullptr;
+	}
 }

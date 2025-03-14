@@ -9,6 +9,7 @@
 #include <game/client/component.h>
 #include <game/client/ui_rect.h>
 #include <game/client/lineinput.h>
+#include <game/client/ui.h>
 
 #include <chrono>
 #include <functional>
@@ -52,7 +53,6 @@ public:
 	bool SaveConfigurationToFile();
 	void SaveConfigurationToClipboard();
 	void ResetVirtualVisibilities();
-	void OnOpenTouchButtonEditor();
 	void RenderTouchButtonEditor(CUIRect MainView);
 
 	EDirectTouchIngameMode DirectTouchIngame() const { return m_DirectTouchIngame; }
@@ -200,14 +200,14 @@ private:
 
 		CTouchControls *m_pTouchControls;
 
-		CUnitRect m_UnitRect;
+		CUnitRect m_UnitRect; //{0,0,50000,50000} = default
 		CUIRect m_ScreenRect;
 
-		EButtonShape m_Shape;
+		EButtonShape m_Shape; // Rect = default
 		int m_BackgroundCorners; // only used with EButtonShape::RECT
 
 		std::vector<CButtonVisibility> m_vVisibilities;
-		std::unique_ptr<CTouchButtonBehavior> m_pBehavior;
+		std::unique_ptr<CTouchButtonBehavior> m_pBehavior; // nullptr = default
 
 		bool m_VisibilityCached;
 		std::chrono::nanoseconds m_VisibilityStartTime;
@@ -250,6 +250,8 @@ private:
 		virtual void OnDeactivate() {}
 		virtual void OnUpdate() {}
 		virtual void WriteToConfiguration(CJsonWriter *pWriter) = 0;
+		virtual const char* GetBehaviorType() const = 0;
+		virtual const char* GetPredefinedType() { return nullptr; }
 	};
 
 	/**
@@ -270,6 +272,8 @@ private:
 		 * may override this, but they should call the parent function first.
 		 */
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
+		const char* GetBehaviorType() const override { return BEHAVIOR_TYPE; }
+		const char* GetPredefinedType() override { return m_pId; }
 
 	private:
 		const char *m_pId;
@@ -290,6 +294,7 @@ private:
 	class CExtraMenuTouchButtonBehavior : public CPredefinedTouchButtonBehavior
 	{
 	public:
+		friend CTouchControls;
 		static constexpr const char *const BEHAVIOR_ID = "extra-menu";
 
 		CExtraMenuTouchButtonBehavior(int Number);
@@ -427,6 +432,7 @@ private:
 	class CBindTouchButtonBehavior : public CTouchButtonBehavior
 	{
 	public:
+		friend CTouchControls;
 		static constexpr const char *const BEHAVIOR_TYPE = "bind";
 
 		CBindTouchButtonBehavior(const char *pLabel, CButtonLabel::EType LabelType, const char *pCommand) :
@@ -439,6 +445,7 @@ private:
 		void OnDeactivate() override;
 		void OnUpdate() override;
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
+		const char* GetBehaviorType() const override { return BEHAVIOR_TYPE; }
 
 	private:
 		std::string m_Label;
@@ -456,6 +463,7 @@ private:
 	class CBindToggleTouchButtonBehavior : public CTouchButtonBehavior
 	{
 	public:
+		friend CTouchControls;
 		static constexpr const char *const BEHAVIOR_TYPE = "bind-toggle";
 
 		class CCommand
@@ -477,6 +485,7 @@ private:
 		CButtonLabel GetLabel() const override;
 		void OnActivate() override;
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
+		const char* GetBehaviorType() const override { return BEHAVIOR_TYPE; }
 
 	private:
 		std::vector<CCommand> m_vCommands;
@@ -593,17 +602,38 @@ private:
 	std::unique_ptr<CBindToggleTouchButtonBehavior> ParseBindToggleBehavior(const json_value *pBehaviorObject);
 	void WriteConfiguration(CJsonWriter *pWriter);
 	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {});
+	void OnOpenTouchButtonEditor(bool Force = false);
 
 	CTouchButton *m_pSelectedButton = nullptr;
-	CTouchButton *m_pTmpButton = new CTouchButton(this);
-	CTouchButtonBehavior *m_pCachedBehavior = nullptr;
+	CTouchButton *m_pTmpButton = new CTouchButton(this); // This is for render, when directly slide to move buttons on screen.
+	CTouchButtonBehavior *m_pCachedBehavior = nullptr; // For Render() to get the behavior data when the target button has nullptr behavior pointer.
+
 	std::vector<bool> m_vVirtualVisibilities;
 	EButtonShape m_CachedShape;
+	int m_EditBehaviorType = 0; //Default = bind
+	int m_PredefinedBehaviorType = 0; //Default = extra menu
+	std::vector<CBindToggleTouchButtonBehavior::CCommand> m_vCachedCommands;
+	int m_CachedNumber = 0;
+	int m_EditCommandNumber = 0;
+	bool m_UnsavedChanges = false;
 
+	CUIElement m_DecreaseButton;
+	CUIElement m_IncreaseButton;
+	CUIElement m_DeleteButton;
+	CUIElement m_ExtraMenuDecreaseButton;
+	CUIElement m_ExtraMenuIncreaseButton;
+	CUIElement m_AddNewButton;
+	CUIElement m_RemoveButton;
+	CUIElement m_ConfirmButton;
+	CUIElement m_CancelButton;
+
+	//The biggest value's length is shorter than 6
 	CLineInputBuffered<6> m_InputX;
 	CLineInputBuffered<6> m_InputY;
 	CLineInputBuffered<6> m_InputW;
-	CLineInputBuffered<6> m_InputH; 
+	CLineInputBuffered<6> m_InputH;
+	CLineInputBuffered<1024> m_InputCommand;
+	CLineInputBuffered<1024> m_InputLabel;
 	void RenderButtonsWhileInEditor();
 };
 
