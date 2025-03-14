@@ -2148,7 +2148,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	static CScrollRegion s_ButtonShapeDropDownScrollRegion;
 	s_ButtonShapeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonShapeDropDownScrollRegion;
 	const char* Shapes[] = {"Rect", "Circle"};
-	const EButtonShape NewButtonShape = (EButtonShape)Ui()->DoDropDown(&B, (int)OldButtonShape, Shapes, std::size(Shapes), s_ButtonShapeDropDownState);
+	const EButtonShape NewButtonShape = (EButtonShape)Ui()->DoDropDown(&B, (int)m_CachedShape, Shapes, std::size(Shapes), s_ButtonShapeDropDownState);
 	if(NewButtonShape != m_CachedShape)
 	{
 		m_CachedShape = NewButtonShape;
@@ -2309,7 +2309,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 
 		B.VSplitLeft(B.w * 2 / 3.0f, &A, &B);
-		Ui()->DoLabel(&A, std::to_string(m_CachedNumber + 1), 16.0f, TEXTALIGN_ML);
+		Ui()->DoLabel(&A, std::to_string(m_CachedNumber + 1).c_str(), 16.0f, TEXTALIGN_ML);
 
 		const auto &&ExtraMenuIncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
 		static CButtonContainer s_ExtraMenuIncreaseButton;
