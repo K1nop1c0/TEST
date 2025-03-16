@@ -2385,7 +2385,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		else if(m_EditBehaviorType == 2)
 		{
 			if(m_PredefinedBehaviorType != 0)
-				m_pSelectedButton->m_pBehavior = m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_Factory(nullptr);
+				m_pSelectedButton->m_pBehavior = m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_Factory();
 			else
 				m_pSelectedButton->m_pBehavior = std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
 		}
