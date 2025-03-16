@@ -48,10 +48,10 @@ static constexpr int BUTTON_SIZE_MINIMUM = 50000;
 static constexpr int BUTTON_SIZE_MAXIMUM = 500000;
 
 //When *pBehavior is nullptr, ParseExtraMenuBehavior will use cached number.
-const CTouchControls::CBehaviorFactory CTouchControls::BEHAVIOR_FACTORIES[10] = {
-	{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return ParseExtraMenuBehavior(pBehavior); }},
-	{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
-	{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
+m_BehaviorFactoriesEditor[10] = {
+	{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return ParseExtraMenuBehavior(pBehavior); }},
+	{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
+	{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
 	{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
 	{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
 	{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
@@ -1472,6 +1472,26 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 		log_error("touch_controls", "Failed to parse touch button behavior of type '%s': attribute 'id' must specify a string", CPredefinedTouchButtonBehavior::BEHAVIOR_TYPE);
 		return nullptr;
 	}
+
+	class CBehaviorFactory
+	{
+	public:
+		const char *m_pId;
+		std::function<std::unique_ptr<CPredefinedTouchButtonBehavior>(const json_value *pBehaviorObject)> m_Factory;
+	};
+
+	const CBehaviorFactory BEHAVIOR_FACTORIES[] = {
+		{CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&](const json_value *pBehavior) { return ParseExtraMenuBehavior(pBehavior); }},
+		{CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
+		{CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
+		{CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
+		{CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
+		{CUseActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
+		{CSwapActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
+		{CSpectateTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
+		{CEmoticonTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
+		{CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
+
 	for(const CBehaviorFactory &BehaviorFactory : BEHAVIOR_FACTORIES)
 	{
 		if(str_comp(PredefinedId.u.string.ptr, BehaviorFactory.m_pId) == 0)
@@ -1645,87 +1665,58 @@ void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
 	pWriter->EndObject();
 }
 
-CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects)
+CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CTouchControls::CUnitRect> &vVisibleButtonRects, CTouchControls::CUnitRect MyRect)
 {
-	if(vCheckedRects.size() == 0)
-		vCheckedRects.resize(vVisibleButtonRects.size(), false);
-	bool OverlappedTwice = false;
-	int Iterator = -1;
-	//Border issue.
-	if(MyRect.m_X < 0)
-		MyRect.m_X = 0;
-	if(MyRect.m_Y < 0)
-		MyRect.m_Y = 0;
-	if(MyRect.m_X + MyRect.m_W > 1000000)
-		MyRect.m_X = 1000000 - MyRect.m_W;
-	if(MyRect.m_Y + MyRect.m_H > 1000000)
-		MyRect.m_Y = 1000000 - MyRect.m_H;
-	//Find the first overlapped rect, which hasn't been overlapped before. If overlapped twice, this way is blocked.
-	const auto &MainOverlappedRect = std::find_if(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&](const auto &OtherRect){
-			Iterator ++;
-			bool CheckOverlap = !(MyRect.m_X + MyRect.m_W <= OtherRect.m_X || OtherRect.m_X + OtherRect.m_W <= MyRect.m_X || MyRect.m_Y + MyRect.m_H <= OtherRect.m_Y || OtherRect.m_Y + OtherRect.m_H <= MyRect.m_Y);
-			if(CheckOverlap && vCheckedRects[Iterator])
+	MyRect.m_X = clamp(MyRect.m_X, 0, 1000000 - MyRect.m_W);
+	MyRect.m_Y = clamp(MyRect.m_Y, 0, 1000000 - MyRect.m_H);
+	double TDis = 1000000.0f;
+	CTouchControls::CUnitRect TRec = {-1, -1, -1, -1};
+	std::set<int> CandidateX;
+	std::set<int> CandidateY;
+	//o(N)
+	bool IfOverlap = std::any_of(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&MyRect](const auto &Rect){
+		return MyRect.IsOverlap(Rect);
+	});
+	if(!IfOverlap)
+		return MyRect;
+	//o(NlogN)
+	for(const auto &Rect : vVisibleButtonRects)
+	{
+		int Pos = Rect.m_X + Rect.m_W;
+		if(Pos + MyRect.m_W <= 1000000)
+			CandidateX.insert(Pos);
+		Pos = Rect.m_X - MyRect.m_W;
+		if(Pos >= 0)
+			CandidateX.insert(Pos);
+		Pos = Rect.m_Y + Rect.m_H;
+		if(Pos + MyRect.m_H <= 1000000)
+			CandidateY.insert(Pos);
+		Pos = Rect.m_Y - MyRect.m_H;
+		if(Pos >= 0)
+			CandidateY.insert(Pos);
+	}
+	CandidateX.insert(MyRect.m_X);
+	CandidateY.insert(MyRect.m_Y);
+
+	CTouchControls::CQuadtree SearchTree(1000000, 1000000);
+	std::for_each(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&SearchTree](const auto &Rect){
+		SearchTree.Insert(Rect);
+	});
+	for(const int &X : CandidateX)
+	for(const int &Y : CandidateY)
+	{
+		CUnitRect TmpRect = {X, Y, MyRect.m_W, MyRect.m_H};
+		if(!SearchTree.Find(TmpRect))
+		{
+			double Dis = TmpRect / MyRect;
+			if(Dis < TDis)
 			{
-				OverlappedTwice = true;
-				return false;
+				TDis = Dis;
+				TRec = TmpRect;
 			}
-			else
-				return CheckOverlap;
-		});
-	if(MainOverlappedRect == vVisibleButtonRects.end())
-	{
-		if(OverlappedTwice)
-		{
-			return {-1, -1, -1, -1};
-		}
-		else
-		{
-			return MyRect;
 		}
 	}
-	vCheckedRects[std::distance(vVisibleButtonRects.begin(), MainOverlappedRect)] = true;
-	double MinDistance = 100000000.0f;
-	CTouchControls::CUnitRect MinRect = {-1, -1, -1, -1};
-	
-	for(int Direction = 0; Direction < 4; Direction++)
-	{
-		CTouchControls::CUnitRect TmpRect = MyRect;
-		//RIGHT
-		if(Direction == 0)
-		{
-			TmpRect.m_X = (*MainOverlappedRect).m_X + (*MainOverlappedRect).m_W;
-			if(TmpRect.m_X + TmpRect.m_W > 1000000)
-				continue;
-		}
-		//BELOW
-		if(Direction == 1)
-		{
-			TmpRect.m_Y = (*MainOverlappedRect).m_Y + (*MainOverlappedRect).m_H;
-			if(TmpRect.m_Y + TmpRect.m_H > 1000000)
-				continue;
-		}
-		//LEFT
-		if(Direction == 2)
-		{
-			TmpRect.m_X = (*MainOverlappedRect).m_X - TmpRect.m_W;
-			if(TmpRect.m_X < 0)
-				continue;
-		}
-		//UP
-		if(Direction == 3)
-		{
-			TmpRect.m_Y = (*MainOverlappedRect).m_Y - TmpRect.m_H;
-			if(TmpRect.m_Y < 0)
-				continue;
-		}
-		TmpRect = FindPositionXY(vVisibleButtonRects, TmpRect, vCheckedRects);
-		if(TmpRect.m_X != -1 && MinDistance > TmpRect / MyRect)
-		{
-			MinDistance = TmpRect / MyRect;
-			MinRect = TmpRect;
-		}
-	}
-	return MinRect;
+	return TRec;
 }
 
 //This is called when the checkbox "Edit touch controls" is selected, so virtual visibility could be set as the real visibility on entering.
@@ -1793,21 +1784,22 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 			}
 		}
 		else if(BehaviorType == "predefined")
+		{	
 			m_EditBehaviorType = 2;
+			const char *PredefinedType = m_pSelectedButton->m_pBehavior->GetPredefinedType();
+			if(PredefinedType == nullptr)
+				m_PredefinedBehaviorType = 0;
+			else
+				for(m_PredefinedBehaviorType = 0; PredefinedType != m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
+
+			if(m_PredefinedBehaviorType == 0)
+			{
+				CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
+				m_CachedNumber = CastedBehavior->m_Number;
+			}
+		}
 		else //Empty
 		 	dbg_assert(false, "Detected out of bound value in m_EditBehaviorType");
-
-		const char *PredefinedType = m_pSelectedButton->m_pBehavior->GetPredefinedType();
-		if(PredefinedType == nullptr)
-			m_PredefinedBehaviorType = 0;
-		else
-			for(m_PredefinedBehaviorType = 0; PredefinedType != BEHAVIOR_FACTORIES[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
-
-		if(m_PredefinedBehaviorType == 0)
-		{
-			CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
-			m_CachedNumber = CastedBehavior->m_Number;
-		}
 	}
 	s_pLastSelectedButton = m_pSelectedButton;
 }
@@ -2082,6 +2074,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
     CUIRect EditBox;
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
+	EditBox.VSplitLeft(25.0f, &A, &EditBox);
+	Ui()->DoLabel(&A, "X:", 16.0f, TEXTALIGN_ML);
     if(Ui()->DoClearableEditBox(&m_InputX, &EditBox, 12.0f))
     {
         std::string InputValue = m_InputX.GetString();
@@ -2097,6 +2091,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	//Auto check if the input value contains char that is not digit. If so delete it.
 	Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
+	EditBox.VSplitLeft(25.0f, &A, &EditBox);
+	Ui()->DoLabel(&A, "Y:", 16.0f, TEXTALIGN_ML);
 	if(Ui()->DoClearableEditBox(&m_InputY, &EditBox, 10.0f))
     {
         std::string InputValue = m_InputY.GetString();
@@ -2111,6 +2107,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
+	EditBox.VSplitLeft(25.0f, &A, &EditBox);
+	Ui()->DoLabel(&A, "W:", 16.0f, TEXTALIGN_ML);
     if(Ui()->DoClearableEditBox(&m_InputW, &EditBox, 10.0f))
     {
         std::string InputValue = m_InputW.GetString();
@@ -2125,6 +2123,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
+	EditBox.VSplitLeft(25.0f, &A, &EditBox);
+	Ui()->DoLabel(&A, "H:", 16.0f, TEXTALIGN_ML);
     if(Ui()->DoClearableEditBox(&m_InputH, &EditBox, 10.0f))
     {
         std::string InputValue = m_InputH.GetString();
@@ -2369,11 +2369,11 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	}
 	//Combine left and right together.
 	Left.w += Right.w;
-	Left.HSplitTop(15.0f, &EditBox, &Left);
+	Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
 	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
-	A.VMargin((A.w - 15.0f) / 2.0f, &A);
+	A.VMargin((A.w - 25.0f) / 2.0f, &A);
 	const auto &&ConfirmButtonLabelFunc = []() { return "Save"; };
 	static CButtonContainer s_ConfirmButton;
 	if(Ui()->DoButton_Menu(m_ConfirmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
@@ -2397,7 +2397,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		else if(m_EditBehaviorType == 2)
 		{
 			if(m_PredefinedBehaviorType != 0)
-				m_pSelectedButton->m_pBehavior = BEHAVIOR_FACTORIES[m_PredefinedBehaviorType].m_Factory(nullptr);
+				m_pSelectedButton->m_pBehavior = m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_Factory(nullptr);
 			else
 				m_pSelectedButton->m_pBehavior = std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
 		}
@@ -2411,7 +2411,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		Ui()->DoLabel(&A, Localize("Unsaved changes"), 10.0f, TEXTALIGN_MC);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	}
-	B.VMargin((B.w - 15.0f) / 2.0f, &B);
+	B.VMargin((B.w - 25.0f) / 2.0f, &B);
 	const auto &&CancelButtonLabelFunc = []() { return "Cancel"; };
 	static CButtonContainer s_CancelButton;
 	if(Ui()->DoButton_Menu(m_CancelButton, &s_CancelButton, CancelButtonLabelFunc, &B))
@@ -2420,7 +2420,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_UnsavedChanges = false;
 	}
 
-	Left.HSplitTop(15.0f, &EditBox, &Left);
+	Left.HSplitTop(25.0f, &EditBox, &Left);
 	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
 	A.VMargin((A.w - 150.0f) / 2.0f, &A);
 	B.VMargin((B.w - 150.0f) / 2.0f, &B);

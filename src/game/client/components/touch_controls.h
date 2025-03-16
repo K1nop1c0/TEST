@@ -4,6 +4,7 @@
 #include <base/color.h>
 #include <base/vmath.h>
 
+#include <cstddef>
 #include <engine/input.h>
 
 #include <game/client/component.h>
@@ -176,13 +177,17 @@ private:
 		//This means distance;
 		double operator/(const CUnitRect &Other) const
 		{
-			double Dx = Other.m_X + Other.m_W / 2 - m_X - m_W / 2;
+			double Dx = Other.m_X + Other.m_W / 2.0f - m_X - m_W / 2.0f;
 			Dx /= 1000000;
 			Dx *= Dx;
-			double Dy = Other.m_Y + Other.m_H / 2 - m_Y - m_H / 2;
+			double Dy = Other.m_Y + Other.m_H / 2.0f - m_Y - m_H / 2.0f;
 			Dy /= 1000000;
 			Dy *= Dy;
 			return std::sqrt(Dx + Dy);
+		}
+		bool IsOverlap(const CUnitRect &Other) const
+		{
+			return (m_X < Other.m_X + Other.m_W) && (m_X + m_W > Other.m_X) && (m_Y < Other.m_Y + Other.m_H) && (m_Y + m_H > Other.m_Y);
 		}
 	};
 
@@ -581,14 +586,25 @@ private:
 	void RenderButtons();
 	vec2 CalculateScreenSize() const;
 
-	class CBehaviorFactory
+	class CBehaviorFactoryEditor
 	{
 	public:
 		const char *m_pId;
-		std::function<std::unique_ptr<CPredefinedTouchButtonBehavior>(const json_value *pBehaviorObject)> m_Factory;
+		std::function<std::unique_ptr<CPredefinedTouchButtonBehavior>()> m_Factory;
 	};
-
-	static const CTouchControls::CBehaviorFactory BEHAVIOR_FACTORIES[10];
+	
+	const CBehaviorFactoryEditor m_BehaviorFactoriesEditor[10] = {
+		{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&]() { return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber); }},
+		{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
+		{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
+		{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
+		{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
+		{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
+		{CTouchControls::CSwapActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
+		{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
+		{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
+		{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
+	
 
 	bool ParseConfiguration(const void *pFileData, unsigned FileLength);
 	std::optional<EDirectTouchIngameMode> ParseDirectTouchIngameMode(const json_value *pModeValue);
@@ -597,11 +613,90 @@ private:
 	std::optional<CTouchButton> ParseButton(const json_value *pButtonObject);
 	std::unique_ptr<CTouchButtonBehavior> ParseBehavior(const json_value *pBehaviorObject);
 	std::unique_ptr<CPredefinedTouchButtonBehavior> ParsePredefinedBehavior(const json_value *pBehaviorObject);
-	static std::unique_ptr<CExtraMenuTouchButtonBehavior> ParseExtraMenuBehavior(const json_value *pBehaviorObject);
+	std::unique_ptr<CExtraMenuTouchButtonBehavior> ParseExtraMenuBehavior(const json_value *pBehaviorObject);
 	std::unique_ptr<CBindTouchButtonBehavior> ParseBindBehavior(const json_value *pBehaviorObject);
 	std::unique_ptr<CBindToggleTouchButtonBehavior> ParseBindToggleBehavior(const json_value *pBehaviorObject);
 	void WriteConfiguration(CJsonWriter *pWriter);
-	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect, std::vector<bool> vCheckedRects = {});
+
+	class CQuadtreeNode
+	{
+	public:
+		CUnitRect m_Space;
+		std::unique_ptr<CQuadtreeNode> m_NW = nullptr, m_NE = nullptr, m_SW = nullptr, m_SE = nullptr;
+		std::vector<CUnitRect> m_Rects;
+		CQuadtreeNode(int X, int Y, int W, int H)
+        : m_Space({X, Y, W, H}) {}
+		void Split()
+		{
+			m_NW = std::make_unique<CQuadtreeNode>(m_Space.m_X, m_Space.m_Y, m_Space.m_W / 2, m_Space.m_H / 2);
+			m_NE = std::make_unique<CQuadtreeNode>(m_Space.m_X + m_Space.m_W / 2, m_Space.m_Y, m_Space.m_W / 2, m_Space.m_H / 2);
+			m_SW = std::make_unique<CQuadtreeNode>(m_Space.m_X, m_Space.m_Y + m_Space.m_H / 2, m_Space.m_W / 2, m_Space.m_H / 2);
+			m_SE = std::make_unique<CQuadtreeNode>(m_Space.m_X + m_Space.m_W / 2, m_Space.m_Y + m_Space.m_H / 2, m_Space.m_W / 2, m_Space.m_H / 2);
+		}
+	};
+
+	class CQuadtree
+	{
+		public:
+			CQuadtree(int Width, int Height) 
+				: m_Root(0, 0, Width, Height), m_MaxObj(3), m_MaxDep(3) {}
+		
+			void Insert(const CUnitRect &Rect)
+			{
+				Insert(m_Root, Rect, 0);
+			}
+			
+			//o(logn)
+			bool Find(const CUnitRect &MyRect)
+			{
+				return Find(MyRect, m_Root);
+			}
+		
+		private:
+			CQuadtreeNode m_Root;
+			const size_t m_MaxObj;
+			const size_t m_MaxDep;
+
+			void Insert(CQuadtreeNode &Node, const CUnitRect &Rect, size_t Depth)
+			{
+				if (Node.m_NW)
+				{
+					if (Node.m_NW->m_Space.IsOverlap(Rect)) Insert(*Node.m_NW, Rect, Depth + 1);
+					if (Node.m_NE->m_Space.IsOverlap(Rect)) Insert(*Node.m_NE, Rect, Depth + 1);
+					if (Node.m_SW->m_Space.IsOverlap(Rect)) Insert(*Node.m_SW, Rect, Depth + 1);
+					if (Node.m_SE->m_Space.IsOverlap(Rect)) Insert(*Node.m_SE, Rect, Depth + 1);
+					return;
+				}
+
+				Node.m_Rects.push_back(Rect);
+
+				if (Node.m_Rects.size() > m_MaxObj && Depth < m_MaxDep)
+				{
+					Node.Split();
+					for (const auto& TRect : Node.m_Rects)
+					{
+						Insert(Node, TRect, Depth);
+					}
+					Node.m_Rects.clear();
+				}
+			}
+			bool Find(const CUnitRect &MyRect, CQuadtreeNode &Node)
+			{
+				if(Node.m_NW)
+				{
+					if(MyRect.IsOverlap(Node.m_NE->m_Space) && Find(MyRect, *Node.m_NE)) return true;
+					if(MyRect.IsOverlap(Node.m_NW->m_Space) && Find(MyRect, *Node.m_NW)) return true;
+					if(MyRect.IsOverlap(Node.m_SE->m_Space) && Find(MyRect, *Node.m_SE)) return true;
+					if(MyRect.IsOverlap(Node.m_SW->m_Space) && Find(MyRect, *Node.m_SW)) return true;
+				}
+				return std::any_of(Node.m_Rects.begin(), Node.m_Rects.end(), [&MyRect](const auto &Rect){
+					return MyRect.IsOverlap(Rect);
+				});
+			}
+	};
+
+
+	CUnitRect FindPositionXY(const std::set<CTouchControls::CUnitRect> &vVisibleButtonRects, CTouchControls::CUnitRect MyRect);
 	void OnOpenTouchButtonEditor(bool Force = false);
 
 	CTouchButton *m_pSelectedButton = nullptr;
