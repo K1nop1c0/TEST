@@ -482,6 +482,8 @@ private:
 				m_Label(pLabel),
 				m_LabelType(LabelType),
 				m_Command(pCommand) {}
+			CCommand() :
+				m_LabelType(CButtonLabel::EType::PLAIN) {}
 		};
 
 		CBindToggleTouchButtonBehavior(std::vector<CCommand> &&vCommands) :

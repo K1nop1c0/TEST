@@ -1750,6 +1750,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	m_InputCommand.Set("");
 	m_InputLabel.Set("");
 	m_vCachedCommands.clear();
+	m_vCachedCommands.resize(5);
 
 	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
 	m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
@@ -1765,7 +1766,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 		if(BehaviorType == "bind")
 		{
 			m_EditBehaviorType = 0;
-			CBindTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
+			CBindTouchButtonBehavior *CastedBehavior = static_cast<CBindTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
 			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
 			m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
 			m_InputCommand.Set(CastedBehavior->m_Command.c_str());
@@ -1774,7 +1775,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 		else if(BehaviorType == "bind-toggle")
 		{
 			m_EditBehaviorType = 1;
-			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
+			CBindToggleTouchButtonBehavior *CastedBehavior = static_cast<CBindToggleTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
 			m_vCachedCommands = CastedBehavior->m_vCommands;
 			m_EditCommandNumber = 0;
 			if(!m_vCachedCommands.empty())
@@ -1794,7 +1795,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 
 			if(m_PredefinedBehaviorType == 0)
 			{
-				CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(s_pLastSelectedButton->m_pBehavior.get());
+				CExtraMenuTouchButtonBehavior *CastedBehavior = static_cast<CExtraMenuTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
 				m_CachedNumber = CastedBehavior->m_Number;
 			}
 		}
@@ -1810,7 +1811,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 	static std::optional<IInput::CTouchFingerState> s_ActiveFingerState;
 	static std::optional<IInput::CTouchFingerState> s_ZoomFingerState;
 	static vec2 s_ZoomStartPos = {0.0f, 0.0f};
-	static bool s_LongPresss = false;
+	static bool s_LongPress = false;
 	static vec2 s_AccumulatedDelta = {0.0f, 0.0f};
 	static std::optional<IInput::CTouchFingerState> s_LongPressFingerState;
 	static std::optional<CUnitRect> s_ShownRect;
@@ -1870,7 +1871,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
     		const auto Now = time_get_nanoseconds();
     		if(Now - (*s_LongPressFingerState).m_PressTime > 400ms)
     		{
-				s_LongPresss = true;
+				s_LongPress = true;
 				s_DeletedFingerState.push_back(*s_LongPressFingerState);
 				//LongPress will be used this frame for sure, so reset delta.
 				s_AccumulatedDelta = {0.0f, 0.0f};
@@ -1923,7 +1924,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 		if(IsVisible)
 		{
 			//Only Long Pressed finger "in visible button" is used for selecting a button.
-			if(s_LongPresss && !vTouchFingerStates.empty() && TouchButton.IsInside((*s_LongPressFingerState).m_Position * ScreenSize))
+			if(s_LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*s_LongPressFingerState).m_Position * ScreenSize))
 			{
 				//If m_pSelectedButton changes, Update the original button's rect, then change.
 				if(m_pSelectedButton != nullptr && m_pSelectedButton != &TouchButton)
@@ -1936,7 +1937,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 				s_ActiveFingerState = *s_LongPressFingerState;
 				//LongPress used.
 				s_LongPressFingerState = std::nullopt;
-				s_LongPresss = false;
+				s_LongPress = false;
 				//Don't insert the long pressed button. It is selected button now.
 				continue;
 			}
@@ -1951,10 +1952,10 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 		}
 	}
 	//If LongPress == true, LongPress finger has to be outside of all visible buttons.
-	if(s_LongPresss)
+	if(s_LongPress)
 	{
 		m_pSelectedButton = nullptr;
-		s_LongPresss = false;
+		s_LongPress = false;
 		s_LongPressFingerState = std::nullopt;
 	}
 	
@@ -2373,7 +2374,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
 	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
-	A.VMargin((A.w - 25.0f) / 2.0f, &A);
+	A.VMargin((A.w - 50.0f) / 2.0f, &A);
 	const auto &&ConfirmButtonLabelFunc = []() { return "Save"; };
 	static CButtonContainer s_ConfirmButton;
 	if(Ui()->DoButton_Menu(m_ConfirmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
@@ -2401,6 +2402,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			else
 				m_pSelectedButton->m_pBehavior = std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
 		}
+		m_pSelectedButton->UpdatePointers();
 		m_UnsavedChanges = false;
 	}
 
@@ -2411,7 +2413,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		Ui()->DoLabel(&A, Localize("Unsaved changes"), 10.0f, TEXTALIGN_MC);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	}
-	B.VMargin((B.w - 25.0f) / 2.0f, &B);
+	B.VMargin((B.w - 50.0f) / 2.0f, &B);
 	const auto &&CancelButtonLabelFunc = []() { return "Cancel"; };
 	static CButtonContainer s_CancelButton;
 	if(Ui()->DoButton_Menu(m_CancelButton, &s_CancelButton, CancelButtonLabelFunc, &B))
