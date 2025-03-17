@@ -47,18 +47,6 @@ static constexpr int BUTTON_SIZE_SCALE = 1000000;
 static constexpr int BUTTON_SIZE_MINIMUM = 50000;
 static constexpr int BUTTON_SIZE_MAXIMUM = 500000;
 
-//When *pBehavior is nullptr, ParseExtraMenuBehavior will use cached number.
-m_BehaviorFactoriesEditor[10] = {
-	{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return ParseExtraMenuBehavior(pBehavior); }},
-	{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
-	{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
-	{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
-	{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
-	{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
-	{CTouchControls::CSwapActionTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
-	{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
-	{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
-	{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
 
 /* This is required for the localization script to find the labels of the default bind buttons specified in the configuration file:
 Localizable("Move left") Localizable("Move right") Localizable("Jump") Localizable("Prev. weapon") Localizable("Next weapon")
@@ -2398,7 +2386,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		else if(m_EditBehaviorType == 2)
 		{
 			if(m_PredefinedBehaviorType != 0)
-				m_pSelectedButton->m_pBehavior = m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_Factory(nullptr);
+				m_pSelectedButton->m_pBehavior = m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_Factory();
 			else
 				m_pSelectedButton->m_pBehavior = std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
 		}
