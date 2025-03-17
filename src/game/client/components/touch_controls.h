@@ -725,10 +725,10 @@ private:
 	CUIElement m_CancelButton;
 
 	//The biggest value's length is shorter than 6
-	CLineInputBuffered<6> m_InputX;
-	CLineInputBuffered<6> m_InputY;
-	CLineInputBuffered<6> m_InputW;
-	CLineInputBuffered<6> m_InputH;
+	CLineInputBuffered<8> m_InputX;
+	CLineInputBuffered<8> m_InputY;
+	CLineInputBuffered<8> m_InputW;
+	CLineInputBuffered<8> m_InputH;
 	CLineInputBuffered<1024> m_InputCommand;
 	CLineInputBuffered<1024> m_InputLabel;
 	void RenderButtonsWhileInEditor();

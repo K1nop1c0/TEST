@@ -83,6 +83,8 @@ CTouchControls::CTouchButton &CTouchControls::CTouchButton::operator=(CTouchButt
 	m_vVisibilities = Other.m_vVisibilities;
 	m_pBehavior = std::move(Other.m_pBehavior);
 	m_VisibilityCached = false;
+	UpdatePointers();
+	UpdateScreenFromUnitRect();
 	return *this;
 }
 
@@ -2422,6 +2424,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
 		m_vTouchButtons.push_back(std::move(NewButton));
 		m_pSelectedButton = &(m_vTouchButtons.back());
+		m_pSelectedButton->UpdatePointers();
 	}
 	const auto &&RemoveButtonLabelFunc = []() { return "Delete Button"; };
 	static CButtonContainer s_RemoveButton;
