@@ -4,7 +4,6 @@
 #include <base/color.h>
 #include <base/vmath.h>
 
-#include <cstddef>
 #include <engine/input.h>
 
 #include <game/client/component.h>
@@ -702,7 +701,7 @@ private:
 	void OnOpenTouchButtonEditor(bool Force = false);
 
 	CTouchButton *m_pSelectedButton = nullptr;
-	CTouchButton *m_pTmpButton = new CTouchButton(this); // This is for render, when directly slide to move buttons on screen.
+	std::unique_ptr<CTouchButton> m_pTmpButton = std::make_unique<CTouchButton>(this); // This is for render, when directly slide to move buttons on screen.
 	CTouchButtonBehavior *m_pCachedBehavior = nullptr; // For Render() to get the behavior data when the target button has nullptr behavior pointer.
 
 	std::vector<bool> m_vVirtualVisibilities;
@@ -725,10 +724,10 @@ private:
 	CUIElement m_CancelButton;
 
 	//The biggest value's length is shorter than 6
-	CLineInputBuffered<8> m_InputX;
-	CLineInputBuffered<8> m_InputY;
-	CLineInputBuffered<8> m_InputW;
-	CLineInputBuffered<8> m_InputH;
+	CLineInputBuffered<7> m_InputX;
+	CLineInputBuffered<7> m_InputY;
+	CLineInputBuffered<7> m_InputW;
+	CLineInputBuffered<7> m_InputH;
 	CLineInputBuffered<1024> m_InputCommand;
 	CLineInputBuffered<1024> m_InputLabel;
 	void RenderButtonsWhileInEditor();

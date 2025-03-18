@@ -1849,7 +1849,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 	{
     	s_AccumulatedDelta += (*s_LongPressFingerState).m_Delta;
 		//If slided, then delete.
-    	if(std::abs(s_AccumulatedDelta.x) + std::abs(s_AccumulatedDelta.y) > 0.0005)
+    	if(std::abs(s_AccumulatedDelta.x) + std::abs(s_AccumulatedDelta.y) > 0.005)
     	{
     		s_AccumulatedDelta = {0.0f, 0.0f};
 			s_DeletedFingerState.push_back(*s_LongPressFingerState);
@@ -1982,9 +1982,15 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 				{
 					//This is harder than it looks. This is still not the best solution.
 					if((*s_ShownRect).m_X + (*s_ShownRect).m_W - Rect.m_X > (*s_ShownRect).m_Y + (*s_ShownRect).m_H - Rect.m_Y)
+					{
 						BiggestH = std::min(Rect.m_Y - (*s_ShownRect).m_Y, BiggestH.value_or(1000000));
+						BiggestH = (BiggestH < 50000) ? std::nullopt : BiggestH;
+					}
 					else
+					{
 						BiggestW = std::min(Rect.m_X - (*s_ShownRect).m_X, BiggestW.value_or(1000000));
+						BiggestW = (BiggestW < 50000) ? std::nullopt : BiggestW;
+					}
 				}
 			}
 			(*s_ShownRect).m_W = BiggestW.value_or((*s_ShownRect).m_W);
