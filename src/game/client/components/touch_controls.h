@@ -544,6 +544,11 @@ private:
 	int m_ActionSelected = ACTION_FIRE;
 
 	/**
+	 * Counts how many joysticks are pressed.
+	 */
+	int m_JoystickCount = 0;
+
+	/**
 	 * The action that was last activated with direct touch input, which will determine the finger that will
 	 * be used to update the mouse position from direct touch input.
 	 */
@@ -560,13 +565,6 @@ private:
 	 * The states of the different actions for direct touch input.
 	 */
 	CActionState m_aDirectTouchActionStates[NUM_ACTIONS];
-
-	/**
-	 * A pointer to the action joystick, if any exists in the current configuration, or `nullptr` if none.
-	 * This is set by @link CJoystickActionTouchButtonBehavior @endlink when it is initialized and always
-	 * cleared before loading a new touch button configuration.
-	 */
-	CJoystickActionTouchButtonBehavior *m_pPrimaryJoystickTouchButtonBehavior;
 
 	/**
 	 * Whether editing mode is currently active.
