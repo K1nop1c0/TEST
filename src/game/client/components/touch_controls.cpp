@@ -548,7 +548,7 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnActivate()
 	{
 		m_pTouchControls->Console()->ExecuteLineStroked(1, ACTION_COMMANDS[m_ActiveAction]);
 	}
-	m_JoystickCount ++;
+	m_pTouchControls->m_JoystickCount ++;
 }
 
 void CTouchControls::CJoystickTouchButtonBehavior::OnDeactivate()
@@ -558,7 +558,7 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnDeactivate()
 		m_pTouchControls->Console()->ExecuteLineStroked(0, ACTION_COMMANDS[m_ActiveAction]);
 	}
 	m_ActiveAction = NUM_ACTIONS;
-	m_JoystickCount --;
+	m_pTouchControls->m_JoystickCount --;
 }
 
 void CTouchControls::CJoystickTouchButtonBehavior::OnUpdate()
@@ -1722,7 +1722,6 @@ void CTouchControls::ResetVirtualVisibilities()
 //This is called when the Touch button editor is rendered, the below one. Used for updating the CLineInput.
 void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 {
-	try{
 	static CTouchButton *s_pLastSelectedButton = nullptr;
 
 	//If selected button changes, update the cached information in editor. You can also force changing.
@@ -1755,10 +1754,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	//These are behavior values.
 	if(m_pSelectedButton->m_pBehavior != nullptr)
 	{
-		try
-		{std::string BehaviorType = m_pSelectedButton->m_pBehavior->GetBehaviorType();}
-		catch(std::exception e)
-		{dbg_assert(false, "WTF GETBEHAVIORTYPE FAILED in OnOpenTouchButtonBehavior");}
+		std::string BehaviorType = m_pSelectedButton->m_pBehavior->GetBehaviorType();
 		if(BehaviorType == "bind")
 		{
 			m_EditBehaviorType = 0;
@@ -1806,7 +1802,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	}
 	if(m_vCachedCommands.size() < 2)
 		m_vCachedCommands.resize(2);
-	s_pLastSelectedButton = m_pSelectedButton;} catch (std::exception e){dbg_assert(false, "OnOpen failed");}
+	s_pLastSelectedButton = m_pSelectedButton;
 }
 
 
@@ -1999,6 +1995,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 					LimitH = Rect.m_Y - (*s_ShownRect).m_Y;
 					LimitW = Rect.m_X - (*s_ShownRect).m_X;
 					if(s_ShownRect.has_value())
+					{
 						if(std::abs(LimitH - (*s_ShownRect).m_H) < std::abs(LimitW - (*s_ShownRect).m_W))
 						{
 							BiggestH = std::min(LimitH, BiggestH.value_or(1000000));
@@ -2007,6 +2004,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 						{
 							BiggestW = std::min(LimitW, BiggestW.value_or(1000000));
 						}
+					}
 				}
 			}
 			(*s_ShownRect).m_W = BiggestW.value_or((*s_ShownRect).m_W);
@@ -2053,22 +2051,14 @@ void CTouchControls::RenderButtonsWhileInEditor()
 		});
 		if(IsVisible)
 		{
-			try {
-				TouchButton.Render();
-			} catch (std::exception e) {
-				dbg_assert(false, "??? NORMAL TOUCHBUTTON RENDERING FAILED HOW???");
-			}
+			TouchButton.Render();
 		}
 	}
 	if(m_pSelectedButton != nullptr)
 	{
 		if(m_pCachedBehavior == nullptr)
 			dbg_assert(false, "Nullptr Cached Behavior detected.");
-			try {
-				m_pTmpButton->Render();
-			} catch (std::exception e) {
-				dbg_assert(false, "??? TMP TOUCHBUTTON RENDERING FAILED HOW???");
-			}
+		m_pTmpButton->Render();
 	}
 }
 
@@ -2076,7 +2066,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 {
 	//Update LineInputs and others if Selected button changes.
 	OnOpenTouchButtonEditor();
-	try{
 	//Delete if user inputs value that is not digits.
 	static std::string s_SavedX = "0", s_SavedY = "0", s_SavedW = "50000", s_SavedH = "50000";
 	static bool IsInited = 0;
@@ -2474,7 +2463,5 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		auto DeleteIt = m_vTouchButtons.begin() + (m_pSelectedButton - &m_vTouchButtons[0]);
 		m_vTouchButtons.erase(DeleteIt);
 		m_pSelectedButton = nullptr;
-	}} catch(std::exception e){
-		dbg_assert(false, "RenderTouchButtonEditor breaks");
 	}
 }
