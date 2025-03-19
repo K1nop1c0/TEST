@@ -478,20 +478,18 @@ CTouchControls::CButtonLabel CTouchControls::CSwapActionTouchButtonBehavior::Get
 	{
 		return {CButtonLabel::EType::LOCALIZED, ACTION_NAMES[m_ActiveAction]};
 	}
-	else if(m_pTouchControls->m_pPrimaryJoystickTouchButtonBehavior != nullptr &&
-		m_pTouchControls->m_pPrimaryJoystickTouchButtonBehavior->ActiveAction() != NUM_ACTIONS)
+	else if(m_pTouchControls->m_JoystickCount != 0)
 	{
-		return {CButtonLabel::EType::LOCALIZED, ACTION_NAMES[m_pTouchControls->NextActiveAction(m_pTouchControls->m_pPrimaryJoystickTouchButtonBehavior->ActiveAction())]};
+		return {CButtonLabel::EType::LOCALIZED, ACTION_NAMES[m_pTouchControls->NextActiveAction(m_pTouchControls->m_ActionSelected)]};
 	}
 	return {CButtonLabel::EType::LOCALIZED, ACTION_SWAP_NAMES[m_pTouchControls->m_ActionSelected]};
 }
 
 void CTouchControls::CSwapActionTouchButtonBehavior::OnActivate()
 {
-	if(m_pTouchControls->m_pPrimaryJoystickTouchButtonBehavior != nullptr &&
-		m_pTouchControls->m_pPrimaryJoystickTouchButtonBehavior->ActiveAction() != NUM_ACTIONS)
+	if(m_pTouchControls->m_JoystickCount != 0)
 	{
-		m_ActiveAction = m_pTouchControls->NextActiveAction(m_pTouchControls->m_pPrimaryJoystickTouchButtonBehavior->ActiveAction());
+		m_ActiveAction = m_pTouchControls->NextActiveAction(m_pTouchControls->m_ActionSelected);
 		m_pTouchControls->Console()->ExecuteLineStroked(1, ACTION_COMMANDS[m_ActiveAction]);
 	}
 	else
@@ -588,7 +586,6 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnUpdate()
 void CTouchControls::CJoystickActionTouchButtonBehavior::Init(CTouchButton *pTouchButton)
 {
 	CPredefinedTouchButtonBehavior::Init(pTouchButton);
-	m_pTouchControls->m_pPrimaryJoystickTouchButtonBehavior = this;
 }
 
 int CTouchControls::CJoystickActionTouchButtonBehavior::SelectedAction() const
@@ -1213,7 +1210,6 @@ bool CTouchControls::ParseConfiguration(const void *pFileData, unsigned FileLeng
 	m_BackgroundColorInactive = ParsedBackgroundColorInactive.value();
 	m_BackgroundColorActive = ParsedBackgroundColorActive.value();
 
-	m_pPrimaryJoystickTouchButtonBehavior = nullptr;
 	m_vTouchButtons = std::move(vParsedTouchButtons);
 	for(CTouchButton &TouchButton : m_vTouchButtons)
 	{
@@ -1740,7 +1736,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	m_InputCommand.Set("");
 	m_InputLabel.Set("");
 	m_vCachedCommands.clear();
-	m_vCachedCommands.resize(5);
+	m_vCachedCommands.reserve(5);
 
 	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
 	m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
@@ -1792,6 +1788,8 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 		else //Empty
 		 	dbg_assert(false, "Detected out of bound value in m_EditBehaviorType");
 	}
+	if(m_vCachedCommands.size() < 2)
+		m_vCachedCommands.resize(2);
 	s_pLastSelectedButton = m_pSelectedButton;
 }
 
@@ -1849,7 +1847,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 	{
     	s_AccumulatedDelta += (*s_LongPressFingerState).m_Delta;
 		//If slided, then delete.
-    	if(std::abs(s_AccumulatedDelta.x) + std::abs(s_AccumulatedDelta.y) > 0.005)
+    	if(std::abs(s_AccumulatedDelta.x) + std::abs(s_AccumulatedDelta.y) > 0.0005)
     	{
     		s_AccumulatedDelta = {0.0f, 0.0f};
 			s_DeletedFingerState.push_back(*s_LongPressFingerState);
@@ -1983,12 +1981,18 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 					//This is harder than it looks. This is still not the best solution.
 					if((*s_ShownRect).m_X + (*s_ShownRect).m_W - Rect.m_X > (*s_ShownRect).m_Y + (*s_ShownRect).m_H - Rect.m_Y)
 					{
+					{
 						BiggestH = std::min(Rect.m_Y - (*s_ShownRect).m_Y, BiggestH.value_or(1000000));
+						BiggestH = (BiggestH < 50000) ? std::nullopt : BiggestH;
+					}
 						BiggestH = (BiggestH < 50000) ? std::nullopt : BiggestH;
 					}
 					else
 					{
+					{
 						BiggestW = std::min(Rect.m_X - (*s_ShownRect).m_X, BiggestW.value_or(1000000));
+						BiggestW = (BiggestW < 50000) ? std::nullopt : BiggestW;
+					}
 						BiggestW = (BiggestW < 50000) ? std::nullopt : BiggestW;
 					}
 				}
@@ -2009,7 +2013,11 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			m_pSelectedButton->m_UnitRect = (*s_ShownRect);
 			m_pSelectedButton->UpdateScreenFromUnitRect();
 		}
-
+		
+		m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
+		m_InputY.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_Y).c_str());
+		m_InputW.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_W).c_str());
+		m_InputH.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_H).c_str());
 		m_pTmpButton->m_UnitRect = (*s_ShownRect);
 	    m_pTmpButton->m_Shape = m_pSelectedButton->m_Shape;
 	    m_pTmpButton->m_vVisibilities = m_pSelectedButton->m_vVisibilities;
