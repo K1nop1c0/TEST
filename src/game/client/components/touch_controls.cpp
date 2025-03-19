@@ -2401,6 +2401,14 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	if(Ui()->DoButton_Menu(m_ConfirmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
 	{
 		//Save the cached config to the selected button.
+		static int Count = 50;
+		Count--;
+		if(Count > 0)
+			Console()->ExecuteLine("echo Disabled");
+		else
+		{
+		if(m_pSelectedButton == nullptr)
+			dbg_assert(false, "nullptr detected in SelectedButton in Save button");
 		m_pSelectedButton->m_UnitRect.m_X = std::stoi(m_InputX.GetString());
 		m_pSelectedButton->m_UnitRect.m_Y = std::stoi(m_InputY.GetString());
 		m_pSelectedButton->m_UnitRect.m_W = std::stoi(m_InputW.GetString());
@@ -2424,7 +2432,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 				m_pSelectedButton->m_pBehavior = std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
 		}
 		m_pSelectedButton->UpdatePointers();
-		m_UnsavedChanges = false;
+		m_UnsavedChanges = false;}
 	}
 
 	EditBox.VSplitLeft(EditBox.w * 2.0f / 3.0f, &A, &B);
