@@ -2068,8 +2068,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	OnOpenTouchButtonEditor();
 	//Delete if user inputs value that is not digits.
 	static std::string s_SavedX = "0", s_SavedY = "0", s_SavedW = "50000", s_SavedH = "50000";
-	static bool IsInited = 0;
-	if(!IsInited)
+	static bool IsInited = false;
+	if(IsInited == false)
 	{
 		m_IncreaseButton.Init(Ui(), -1);
 		m_DecreaseButton.Init(Ui(), -1);
@@ -2080,6 +2080,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_RemoveButton.Init(Ui(), -1);
 		m_ConfirmButton.Init(Ui(), -1);
 		m_CancelButton.Init(Ui(), -1);
+		IsInited = true;
 	}
 
     CUIRect Left, Right, A, B;
