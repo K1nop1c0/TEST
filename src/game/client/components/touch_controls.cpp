@@ -11,6 +11,7 @@
 #include <engine/shared/jsonwriter.h>
 #include <engine/shared/localization.h>
 
+#include <exception>
 #include <game/client/components/camera.h>
 #include <game/client/components/chat.h>
 #include <game/client/components/console.h>
@@ -547,6 +548,7 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnActivate()
 	{
 		m_pTouchControls->Console()->ExecuteLineStroked(1, ACTION_COMMANDS[m_ActiveAction]);
 	}
+	m_JoystickCount ++;
 }
 
 void CTouchControls::CJoystickTouchButtonBehavior::OnDeactivate()
@@ -556,6 +558,7 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnDeactivate()
 		m_pTouchControls->Console()->ExecuteLineStroked(0, ACTION_COMMANDS[m_ActiveAction]);
 	}
 	m_ActiveAction = NUM_ACTIONS;
+	m_JoystickCount --;
 }
 
 void CTouchControls::CJoystickTouchButtonBehavior::OnUpdate()
@@ -1719,6 +1722,7 @@ void CTouchControls::ResetVirtualVisibilities()
 //This is called when the Touch button editor is rendered, the below one. Used for updating the CLineInput.
 void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 {
+	try{
 	static CTouchButton *s_pLastSelectedButton = nullptr;
 
 	//If selected button changes, update the cached information in editor. You can also force changing.
@@ -1727,6 +1731,9 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 		s_pLastSelectedButton = m_pSelectedButton;
 		return;
 	}
+
+	if(m_pSelectedButton == nullptr)
+		dbg_assert(false, "WTF NULLPTR == S_PLASTSELECTEDBUTTON IN ONOPENTOUCHBUTTONEDITOR COME ON");
 
 	//Reset all cached values.
 	m_EditBehaviorType = 0;
@@ -1748,11 +1755,16 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	//These are behavior values.
 	if(m_pSelectedButton->m_pBehavior != nullptr)
 	{
-		std::string BehaviorType = m_pSelectedButton->m_pBehavior->GetBehaviorType();
+		try
+		{std::string BehaviorType = m_pSelectedButton->m_pBehavior->GetBehaviorType();}
+		catch(std::exception e)
+		{dbg_assert(false, "WTF GETBEHAVIORTYPE FAILED in OnOpenTouchButtonBehavior");}
 		if(BehaviorType == "bind")
 		{
 			m_EditBehaviorType = 0;
-			CBindTouchButtonBehavior *CastedBehavior = static_cast<CBindTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
+			CBindTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
+			if(CastedBehavior == nullptr)
+				dbg_assert(false, "? CastedNULLPTR in bind");
 			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
 			m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
 			m_InputCommand.Set(CastedBehavior->m_Command.c_str());
@@ -1761,7 +1773,9 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 		else if(BehaviorType == "bind-toggle")
 		{
 			m_EditBehaviorType = 1;
-			CBindToggleTouchButtonBehavior *CastedBehavior = static_cast<CBindToggleTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
+			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
+			if(CastedBehavior == nullptr)
+				dbg_assert(false, "? CastedNULLPTR in bindtoggle");
 			m_vCachedCommands = CastedBehavior->m_vCommands;
 			m_EditCommandNumber = 0;
 			if(!m_vCachedCommands.empty())
@@ -1781,7 +1795,9 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 
 			if(m_PredefinedBehaviorType == 0)
 			{
-				CExtraMenuTouchButtonBehavior *CastedBehavior = static_cast<CExtraMenuTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
+				CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
+				if(CastedBehavior == nullptr)
+					dbg_assert(false, "? CastedNULLPTR in extramenu");
 				m_CachedNumber = CastedBehavior->m_Number;
 			}
 		}
@@ -1790,7 +1806,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	}
 	if(m_vCachedCommands.size() < 2)
 		m_vCachedCommands.resize(2);
-	s_pLastSelectedButton = m_pSelectedButton;
+	s_pLastSelectedButton = m_pSelectedButton;} catch (std::exception e){dbg_assert(false, "OnOpen failed");}
 }
 
 
@@ -1973,22 +1989,24 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			//Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
 			std::optional<int> BiggestW;
 			std::optional<int> BiggestH;
+			int LimitH, LimitW;
 			for(const auto &Rect : vVisibleButtonRects)
 			{
 				//If Overlap
 			    if(!(Rect.m_X + Rect.m_W <= (*s_ShownRect).m_X || (*s_ShownRect).m_X + (*s_ShownRect).m_W <= Rect.m_X || Rect.m_Y + Rect.m_H <= (*s_ShownRect).m_Y || (*s_ShownRect).m_Y + (*s_ShownRect).m_H <= Rect.m_Y))
 				{
-					//This is harder than it looks. This is still not the best solution.
-					if((*s_ShownRect).m_X + (*s_ShownRect).m_W - Rect.m_X > (*s_ShownRect).m_Y + (*s_ShownRect).m_H - Rect.m_Y)
-					{
-						BiggestH = std::min(Rect.m_Y - (*s_ShownRect).m_Y, BiggestH.value_or(1000000));
-						BiggestH = (BiggestH < 50000) ? std::nullopt : BiggestH;
-					}
-					else
-					{
-						BiggestW = std::min(Rect.m_X - (*s_ShownRect).m_X, BiggestW.value_or(1000000));
-						BiggestW = (BiggestW < 50000) ? std::nullopt : BiggestW;
-					}
+					//This is harder than it looks. Please give me better solution if you have.
+					LimitH = Rect.m_Y - (*s_ShownRect).m_Y;
+					LimitW = Rect.m_X - (*s_ShownRect).m_X;
+					if(s_ShownRect.has_value())
+						if(std::abs(LimitH - (*s_ShownRect).m_H) < std::abs(LimitW - (*s_ShownRect).m_W))
+						{
+							BiggestH = std::min(LimitH, BiggestH.value_or(1000000));
+						}
+						else
+						{
+							BiggestW = std::min(LimitW, BiggestW.value_or(1000000));
+						}
 				}
 			}
 			(*s_ShownRect).m_W = BiggestW.value_or((*s_ShownRect).m_W);
@@ -2035,14 +2053,22 @@ void CTouchControls::RenderButtonsWhileInEditor()
 		});
 		if(IsVisible)
 		{
-			TouchButton.Render();
+			try {
+				TouchButton.Render();
+			} catch (std::exception e) {
+				dbg_assert(false, "??? NORMAL TOUCHBUTTON RENDERING FAILED HOW???");
+			}
 		}
 	}
 	if(m_pSelectedButton != nullptr)
 	{
 		if(m_pCachedBehavior == nullptr)
 			dbg_assert(false, "Nullptr Cached Behavior detected.");
-		m_pTmpButton->Render();
+			try {
+				m_pTmpButton->Render();
+			} catch (std::exception e) {
+				dbg_assert(false, "??? TMP TOUCHBUTTON RENDERING FAILED HOW???");
+			}
 	}
 }
 
@@ -2050,6 +2076,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 {
 	//Update LineInputs and others if Selected button changes.
 	OnOpenTouchButtonEditor();
+	try{
 	//Delete if user inputs value that is not digits.
 	static std::string s_SavedX = "0", s_SavedY = "0", s_SavedW = "50000", s_SavedH = "50000";
 	static bool IsInited = 0;
@@ -2115,7 +2142,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			return std::isdigit(static_cast<unsigned char>(Value));
 		});
 		if(!IsDigit)
-			m_InputY.Set(s_SavedW.c_str());
+			m_InputW.Set(s_SavedW.c_str());
 		s_SavedW = m_InputW.GetString();
 		m_UnsavedChanges = true;
     }
@@ -2181,6 +2208,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 		if(m_EditBehaviorType == 1)
 		{
+			if(m_vCachedCommands.size() <= m_EditCommandNumber)
+			dbg_assert(false, "m_vCachedCommands.size < number, in Dropdown behavior choosing space");
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 		}
@@ -2212,8 +2241,10 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		static CButtonContainer s_DecreaseButton;
 		if(Ui()->DoButton_Menu(m_DecreaseButton, &s_DecreaseButton, DecreaseLabelFunc, &A, Props))
 		{
-			if(m_EditCommandNumber != 0)
+			if(m_EditCommandNumber > 0)
 			m_EditCommandNumber --;
+			if(m_vCachedCommands.size() <= m_EditCommandNumber)
+			dbg_assert(false, "commands.size < number at do decrease button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 		}
@@ -2231,6 +2262,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
 				m_UnsavedChanges = true;
 			}
+			if(m_vCachedCommands.size() <= m_EditCommandNumber)
+			dbg_assert(false, "commands.size < number at do increase button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 		}
@@ -2441,5 +2474,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		auto DeleteIt = m_vTouchButtons.begin() + (m_pSelectedButton - &m_vTouchButtons[0]);
 		m_vTouchButtons.erase(DeleteIt);
 		m_pSelectedButton = nullptr;
+	}} catch(std::exception e){
+		dbg_assert(false, "RenderTouchButtonEditor breaks");
 	}
 }
