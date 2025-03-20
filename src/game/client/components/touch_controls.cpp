@@ -240,7 +240,7 @@ bool CTouchControls::CTouchButton::IsVisible() const
 // TODO: Optimization: Use text and quad containers for rendering
 void CTouchControls::CTouchButton::Render() const
 {
-	cosnt bool Selected = this == m_pTouchControls->m_pSelectedButton;
+	const bool Selected = this == m_pTouchControls->m_pSelectedButton;
 	const bool CheckActive = m_pBehavior == nullptr || Selected ? m_pTouchControls->m_pCachedBehavior->IsActive() : m_pBehavior->IsActive();
 	const ColorRGBA ButtonColor = CheckActive ? m_pTouchControls->m_BackgroundColorActive : m_pTouchControls->m_BackgroundColorInactive;
 
