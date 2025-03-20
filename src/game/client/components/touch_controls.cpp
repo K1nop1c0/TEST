@@ -2473,7 +2473,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
 		m_vTouchButtons.push_back(std::move(NewButton));
 		m_pSelectedButton = &(m_vTouchButtons.back());
-		m_pSelectedButton->UpdatePointers();
+		for(auto &TouchButton : m_vTouchButtons)
+			TouchButton.UpdatePointers();
 		m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
 		m_ShownRect = std::nullopt;
 	}
