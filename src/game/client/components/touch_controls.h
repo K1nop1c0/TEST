@@ -710,6 +710,7 @@ private:
 	int m_CachedNumber = 0;
 	int m_EditCommandNumber = 0;
 	bool m_UnsavedChanges = false;
+	std::optional<CUnitRect> m_ShownRect;
 
 	CUIElement m_DecreaseButton;
 	CUIElement m_IncreaseButton;
