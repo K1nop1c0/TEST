@@ -240,7 +240,8 @@ bool CTouchControls::CTouchButton::IsVisible() const
 // TODO: Optimization: Use text and quad containers for rendering
 void CTouchControls::CTouchButton::Render() const
 {
-	const bool CheckActive = m_pBehavior == nullptr ? m_pTouchControls->m_pCachedBehavior->IsActive() : m_pBehavior->IsActive();
+	cosnt bool Selected = this == m_pTouchControls->m_pSelectedButton;
+	const bool CheckActive = m_pBehavior == nullptr || Selected ? m_pTouchControls->m_pCachedBehavior->IsActive() : m_pBehavior->IsActive();
 	const ColorRGBA ButtonColor = CheckActive ? m_pTouchControls->m_BackgroundColorActive : m_pTouchControls->m_BackgroundColorInactive;
 
 	switch(m_Shape)
@@ -267,7 +268,7 @@ void CTouchControls::CTouchButton::Render() const
 	}
 
 	const float FontSize = 22.0f;
-	CButtonLabel LabelData = m_pBehavior == nullptr ? m_pTouchControls->m_pCachedBehavior->GetLabel() : m_pBehavior->GetLabel();
+	CButtonLabel LabelData = m_pBehavior == nullptr || Selected ? m_pTouchControls->m_pCachedBehavior->GetLabel() : m_pBehavior->GetLabel();
 	CUIRect LabelRect;
 	m_ScreenRect.Margin(10.0f, &LabelRect);
 	SLabelProperties LabelProps;
