@@ -11,7 +11,6 @@
 #include <engine/shared/jsonwriter.h>
 #include <engine/shared/localization.h>
 
-#include <exception>
 #include <game/client/components/camera.h>
 #include <game/client/components/chat.h>
 #include <game/client/components/console.h>
@@ -24,8 +23,6 @@
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
-#include <memory>
-#include <string>
 
 using namespace std::chrono_literals;
 
@@ -223,7 +220,7 @@ bool CTouchControls::CTouchButton::IsInside(vec2 TouchPosition) const
 void CTouchControls::CTouchButton::UpdateVisibility()
 {
 	const bool PrevVisibility = m_VisibilityCached;
-	m_VisibilityCached = m_pTouchControls->m_EditingActive || std::all_of(m_vVisibilities.begin(), m_vVisibilities.end(), [&](CButtonVisibility Visibility) {
+	m_VisibilityCached = std::all_of(m_vVisibilities.begin(), m_vVisibilities.end(), [&](CButtonVisibility Visibility) {
 		return m_pTouchControls->m_aVisibilityFunctions[(int)Visibility.m_Type].m_Function() == Visibility.m_Parity;
 	});
 	if(m_VisibilityCached && !PrevVisibility)
@@ -240,8 +237,8 @@ bool CTouchControls::CTouchButton::IsVisible() const
 // TODO: Optimization: Use text and quad containers for rendering
 void CTouchControls::CTouchButton::Render() const
 {
-	const bool Selected = this == m_pTouchControls->m_pSelectedButton;
-	const bool CheckActive = m_pBehavior == nullptr || Selected ? m_pTouchControls->m_pCachedBehavior->IsActive() : m_pBehavior->IsActive();
+	const bool Selected = (this == m_pTouchControls->m_pSelectedButton);
+	const bool CheckActive = (m_pBehavior == nullptr || Selected) ? true : m_pBehavior->IsActive();
 	const ColorRGBA ButtonColor = CheckActive ? m_pTouchControls->m_BackgroundColorActive : m_pTouchControls->m_BackgroundColorInactive;
 
 	switch(m_Shape)
@@ -268,7 +265,7 @@ void CTouchControls::CTouchButton::Render() const
 	}
 
 	const float FontSize = 22.0f;
-	CButtonLabel LabelData = m_pBehavior == nullptr || Selected ? m_pTouchControls->m_pCachedBehavior->GetLabel() : m_pBehavior->GetLabel();
+	CButtonLabel LabelData = (m_pBehavior == nullptr || Selected) ? m_pTouchControls->m_pCachedBehavior->GetLabel() : m_pBehavior->GetLabel();
 	CUIRect LabelRect;
 	m_ScreenRect.Margin(10.0f, &LabelRect);
 	SLabelProperties LabelProps;
@@ -623,6 +620,12 @@ CTouchControls::CButtonLabel CTouchControls::CBindTouchButtonBehavior::GetLabel(
 
 void CTouchControls::CBindTouchButtonBehavior::OnActivate()
 {
+	char MegaBuf[4000] = "Virtual Visibility:";
+	for(const bool VirtualVisibility : m_pTouchControls->m_vVirtualVisibilities)
+		str_format(MegaBuf, sizeof(MegaBuf), "%s%s", MegaBuf, VirtualVisibility?"true,":"false,");
+	for(const auto &vis : m_pTouchControls->m_aVisibilityFunctions)
+		str_format(MegaBuf, sizeof(MegaBuf), "%s%s: %s", MegaBuf, vis.m_pID, vis.m_Parity?"true,":"false,");
+	log_error("VISIBILITY", MegaBuf);
 	m_pTouchControls->Console()->ExecuteLineStroked(1, m_Command.c_str());
 	m_Repeating = false;
 }
@@ -1733,7 +1736,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	}
 
 	if(m_pSelectedButton == nullptr)
-		dbg_assert(false, "WTF NULLPTR == S_PLASTSELECTEDBUTTON IN ONOPENTOUCHBUTTONEDITOR COME ON");
+		dbg_assert(false, "WTF NULLPTR == S_PLASTSELECTEDBUTTON IN ONOPENTOUCHBUTTON EDITOR COME ON");
 
 	//Reset all cached values.
 	m_EditBehaviorType = 0;
@@ -1917,7 +1920,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			m_pSelectedButton->UpdateScreenFromUnitRect();
 		}
 	}
-	for(auto &TouchButton : m_vTouchButtons)
+	for(const auto &TouchButton : m_vTouchButtons)
 	{
 		bool IsVisible = std::all_of(TouchButton.m_vVisibilities.begin(), TouchButton.m_vVisibilities.end(), [&](const auto &Visibility){
 			return Visibility.m_Parity == m_vVirtualVisibilities[(int)Visibility.m_Type];
@@ -2006,6 +2009,11 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 							BiggestW = std::min(LimitW, BiggestW.value_or(1000000));
 						}
 					}
+					else
+					{
+						BiggestH = std::min(LimitH, BiggestH.value_or(1000000));
+						BiggestW = std::min(LimitW, BiggestW.value_or(1000000));
+					}
 				}
 			}
 			(*s_ShownRect).m_W = BiggestW.value_or((*s_ShownRect).m_W);
@@ -2043,7 +2051,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 
 void CTouchControls::RenderButtonsWhileInEditor()
 {
-	for(auto &TouchButton : m_vTouchButtons)
+	for(const auto &TouchButton : m_vTouchButtons)
 	{
 		if(&TouchButton == m_pSelectedButton)
 			continue;
@@ -2059,6 +2067,8 @@ void CTouchControls::RenderButtonsWhileInEditor()
 	{
 		if(m_pCachedBehavior == nullptr)
 			dbg_assert(false, "Nullptr Cached Behavior detected.");
+		if(m_pTmpButton == nullptr)
+			dbg_assert(false, "Nullptr pTmpButton detected");
 		m_pTmpButton->Render();
 	}
 }
@@ -2085,9 +2095,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	}
 
     CUIRect Left, Right, A, B;
-    MainView.VSplitLeft(MainView.w / 2.0f, &Left, &Right);
-    Left.Margin(10.0f, &Left);
-    Right.Margin(10.0f, &Right);
+    MainView.VSplitLeft(MainView.w / 4.0f, &Left, &Right);
+    Left.Margin(5.0f, &Left);
     CUIRect EditBox;
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
@@ -2110,7 +2119,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	EditBox.VSplitLeft(25.0f, &A, &EditBox);
 	Ui()->DoLabel(&A, "Y:", 16.0f, TEXTALIGN_ML);
-	if(Ui()->DoClearableEditBox(&m_InputY, &EditBox, 10.0f))
+	if(Ui()->DoClearableEditBox(&m_InputY, &EditBox, 12.0f))
     {
         std::string InputValue = m_InputY.GetString();
 		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
@@ -2126,7 +2135,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	EditBox.VSplitLeft(25.0f, &A, &EditBox);
 	Ui()->DoLabel(&A, "W:", 16.0f, TEXTALIGN_ML);
-    if(Ui()->DoClearableEditBox(&m_InputW, &EditBox, 10.0f))
+    if(Ui()->DoClearableEditBox(&m_InputW, &EditBox, 12.0f))
     {
         std::string InputValue = m_InputW.GetString();
 		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
@@ -2142,7 +2151,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	EditBox.VSplitLeft(25.0f, &A, &EditBox);
 	Ui()->DoLabel(&A, "H:", 16.0f, TEXTALIGN_ML);
-    if(Ui()->DoClearableEditBox(&m_InputH, &EditBox, 10.0f))
+    if(Ui()->DoClearableEditBox(&m_InputH, &EditBox, 12.0f))
     {
         std::string InputValue = m_InputH.GetString();
 		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
@@ -2179,6 +2188,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 								 "Use Action", "Swap Action", "Spectate", "Emoticon", "Ingame Menu"};
 	const char* LabelTypes[] = {"Plain", "Localized", "Icon"};
 
+	//Right for behaviors, left(center) for visibility. They share 0.75 width of mainview, each 0.375.
+	Right.VSplitRight(Right.w / 2.0f, &Left, &Right);
+	Right.Margin(5.0f, &Right);
 	Right.HSplitTop(25.0f, &EditBox, &Right);
 	Right.HSplitTop(5.0f, nullptr, &Right);
 	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
@@ -2241,7 +2253,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 		B.VSplitLeft(B.w * 0.6f, &A, &B);
 		//m_EditCommandNumber counts from 0. But shown from 1.
-		Ui()->DoLabel(&A, std::to_string(m_EditCommandNumber + 1).c_str(), 16.0f, TEXTALIGN_ML);
+		Ui()->DoLabel(&A, std::to_string(m_EditCommandNumber + 1).c_str(), 16.0f, TEXTALIGN_MC);
 		B.VSplitLeft(B.w / 2.0f, &A, &B);
 		const auto &&IncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
 		static CButtonContainer s_IncreaseButton;
@@ -2332,7 +2344,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 
 		B.VSplitLeft(B.w * 2 / 3.0f, &A, &B);
-		Ui()->DoLabel(&A, std::to_string(m_CachedNumber + 1).c_str(), 16.0f, TEXTALIGN_ML);
+		Ui()->DoLabel(&A, std::to_string(m_CachedNumber + 1).c_str(), 16.0f, TEXTALIGN_MC);
 
 		const auto &&ExtraMenuIncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
 		static CButtonContainer s_ExtraMenuIncreaseButton;
@@ -2443,6 +2455,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	static CButtonContainer s_CancelButton;
 	if(Ui()->DoButton_Menu(m_CancelButton, &s_CancelButton, CancelButtonLabelFunc, &B))
 	{
+		//Since the settings are cancelled, reset the cached settings to m_pSelectedButton though selected button didn't change.
 		OnOpenTouchButtonEditor(true);
 		m_UnsavedChanges = false;
 	}
@@ -2471,4 +2484,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton = nullptr;
 		m_pCachedBehavior = nullptr;
 	}
+
+	//Visibilities time. This is button's visibility, not virtual.
 }

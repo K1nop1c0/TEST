@@ -274,8 +274,8 @@ void CMenus::RenderGame(CUIRect MainView)
 			if(GameClient()->m_TouchControls.IsButtonSelected())
 			{
 				//Only render this when a button is selected.
-				MainView.HSplitTop(20.0f, nullptr, &MainView);
-				MainView.HSplitTop(230.0f, &TouchControlsEditor, &TouchButtonEditor);
+				MainView.HSplitTop(10.0f, nullptr, &MainView);
+				MainView.HSplitBottom(230.0f, &TouchButtonEditor, &TouchControlsEditor);
 				TouchButtonEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_ALL, 10.0f);
 				GameClient()->m_TouchControls.RenderTouchButtonEditor(TouchButtonEditor);
 			}
@@ -283,8 +283,8 @@ void CMenus::RenderGame(CUIRect MainView)
 			{
 				//No button selected, render it like the old days.
 				MainView.VMargin((MainView.w - 505.0f) / 2.0f, &TouchControlsEditor);
+				TouchControlsEditor.HMargin((TouchControlsEditor.h - 230.0f) / 2.0f, &TouchControlsEditor);
 			}
-			TouchControlsEditor.HMargin((TouchControlsEditor.h - 230.0f) / 2.0f, &TouchControlsEditor);
 			RenderTouchControlsEditor(TouchControlsEditor);
 		}
 	}
