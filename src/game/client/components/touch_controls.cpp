@@ -624,7 +624,7 @@ void CTouchControls::CBindTouchButtonBehavior::OnActivate()
 	for(const bool VirtualVisibility : m_pTouchControls->m_vVirtualVisibilities)
 		str_format(MegaBuf, sizeof(MegaBuf), "%s%s", MegaBuf, VirtualVisibility?"true,":"false,");
 	for(const auto &vis : m_pTouchControls->m_aVisibilityFunctions)
-		str_format(MegaBuf, sizeof(MegaBuf), "%s%s: %s", MegaBuf, vis.m_pID, vis.m_Parity?"true,":"false,");
+		str_format(MegaBuf, sizeof(MegaBuf), "%s%s: %s", MegaBuf, vis.m_pId, vis.m_Function()?"true,":"false,");
 	log_error("VISIBILITY", MegaBuf);
 	m_pTouchControls->Console()->ExecuteLineStroked(1, m_Command.c_str());
 	m_Repeating = false;
@@ -1920,7 +1920,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			m_pSelectedButton->UpdateScreenFromUnitRect();
 		}
 	}
-	for(const auto &TouchButton : m_vTouchButtons)
+	for(auto &TouchButton : m_vTouchButtons)
 	{
 		bool IsVisible = std::all_of(TouchButton.m_vVisibilities.begin(), TouchButton.m_vVisibilities.end(), [&](const auto &Visibility){
 			return Visibility.m_Parity == m_vVirtualVisibilities[(int)Visibility.m_Type];
@@ -2484,6 +2484,5 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton = nullptr;
 		m_pCachedBehavior = nullptr;
 	}
-
 	//Visibilities time. This is button's visibility, not virtual.
 }
