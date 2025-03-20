@@ -2221,7 +2221,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 		if(m_EditBehaviorType == 1)
 		{
-			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
+			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "m_vCachedCommands.size < number, in Dropdown behavior choosing space");
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
@@ -2256,7 +2256,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			if(m_EditCommandNumber > 0)
 			m_EditCommandNumber --;
-			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
+			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "commands.size < number at do decrease button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
@@ -2275,7 +2275,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
 				m_UnsavedChanges = true;
 			}
-			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
+			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "commands.size < number at do increase button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
@@ -2484,7 +2484,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
 		m_vTouchButtons.push_back(std::move(NewButton));
 		m_pSelectedButton = &(m_vTouchButtons.back());
-		m_pSelectedButton->UpdatePointers();
+		for(auto &TouchButton : m_vTouchButtons)
+			TouchButton.UpdatePointers();
 		m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
 		m_ShownRect = std::nullopt;
 	}
