@@ -284,6 +284,7 @@ void CTouchControls::CTouchButton::Render() const
 		const char *pLabel = LabelData.m_Type == CButtonLabel::EType::LOCALIZED ? Localize(LabelData.m_pLabel) : LabelData.m_pLabel;
 		m_pTouchControls->Ui()->DoLabel(&LabelRect, pLabel, FontSize, TEXTALIGN_MC, LabelProps);
 	}
+	log_error("Render func", "x=%f,y=%f,w=%f,h=%f;", m_ScreenRect.x, m_ScreenRect.y, m_ScreenRect.w, m_ScreenRect.h);
 }
 
 void CTouchControls::CTouchButton::WriteToConfiguration(CJsonWriter *pWriter)
@@ -1793,7 +1794,10 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 			if(PredefinedType == nullptr)
 				m_PredefinedBehaviorType = 0;
 			else
-				for(m_PredefinedBehaviorType = 0; PredefinedType != m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
+				for(m_PredefinedBehaviorType = 0; m_PredefinedBehaviorType < 10 && PredefinedType != m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
+
+			if(m_PredefinedBehaviorType == 10)
+				dbg_assert(false, "WTF is going on? PredefinedType = %s", PredefinedType);
 
 			if(m_PredefinedBehaviorType == 0)
 			{
@@ -2052,7 +2056,8 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 
 void CTouchControls::RenderButtonsWhileInEditor()
 {
-	for(const auto &TouchButton : m_vTouchButtons)
+	int RenderCount = 0;
+	for(auto &TouchButton : m_vTouchButtons)
 	{
 		if(&TouchButton == m_pSelectedButton)
 			continue;
@@ -2061,7 +2066,9 @@ void CTouchControls::RenderButtonsWhileInEditor()
 		});
 		if(IsVisible)
 		{
+			TouchButton.UpdateScreenFromUnitRect();
 			TouchButton.Render();
+			RenderCount ++;
 		}
 	}
 	if(m_pSelectedButton != nullptr)
@@ -2071,7 +2078,9 @@ void CTouchControls::RenderButtonsWhileInEditor()
 		if(m_pTmpButton == nullptr)
 			dbg_assert(false, "Nullptr pTmpButton detected");
 		m_pTmpButton->Render();
+		RenderCount ++;
 	}
+	log_error("RENDER", "RenderButtonWhileInEditor rendered %d buttons.", RenderCount);
 }
 
 void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
@@ -2403,6 +2412,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			m_UnsavedChanges = true;
 		}
 	}
+
+
 	//Combine left and right together.
 	Left.w += Right.w;
 	Left.HSplitTop(25.0f, &EditBox, &Left);
