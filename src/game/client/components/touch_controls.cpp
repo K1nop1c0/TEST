@@ -1761,7 +1761,11 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	m_InputH.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_H).c_str());
 	m_CachedShape = m_pSelectedButton->m_Shape;
 	for(const auto &Visibility : m_pSelectedButton->m_vVisibilities)
+	{
+		if((int)Visibility.m_Type >= (int) EButtonVisibility::NUM_VISIBILITIES)
+			dbg_assert(false, "666No acting anymore);
 		m_aCachedVisibilities[(int)Visibility.m_Type] = Visibility.m_Parity ? 1 : 0;
+	}
 
 	//These are behavior values.
 	if(m_pSelectedButton->m_pBehavior != nullptr)
@@ -2518,6 +2522,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pCachedBehavior = nullptr;
 	}
 	//Visibilities time. This is button's visibility, not virtual.
+	/**
 	Left.h = 150.0f;
 	Left.Margin(5.0f, &Left);
 	static CScrollRegion s_VisibilityScrollRegion;
@@ -2552,4 +2557,5 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
 		}
 	}
+	**/
 }
