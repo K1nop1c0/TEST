@@ -1762,7 +1762,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	for(const auto &Visibility : m_pSelectedButton->m_vVisibilities)
 	{
 		if((int)Visibility.m_Type >= (int) EButtonVisibility::NUM_VISIBILITIES)
-			dbg_assert(false, "666No acting anymore);
+			dbg_assert(false, "666No acting anymore");
 		m_aCachedVisibilities[(int)Visibility.m_Type] = Visibility.m_Parity ? 1 : 0;
 	}
 
