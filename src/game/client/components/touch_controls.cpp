@@ -2229,7 +2229,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 		if(m_EditBehaviorType == 1)
 		{
-			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
+			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "m_vCachedCommands.size < number, in Dropdown behavior choosing space");
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
@@ -2264,7 +2264,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			if(m_EditCommandNumber > 0)
 			m_EditCommandNumber --;
-			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
+			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "commands.size < number at do decrease button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
@@ -2283,7 +2283,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
 				m_UnsavedChanges = true;
 			}
-			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
+			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "commands.size < number at do increase button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
@@ -2440,8 +2440,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton->m_UnitRect.m_Y = std::stoi(m_InputY.GetString());
 		m_pSelectedButton->m_UnitRect.m_W = std::stoi(m_InputW.GetString());
 		m_pSelectedButton->m_UnitRect.m_H = std::stoi(m_InputH.GetString());
-		m_pSelectedButton->m_vVisibilities.clear()
-		for(const unsigned Iterator; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
+		m_pSelectedButton->m_vVisibilities.clear();
+		for(unsigned Iterator = (unsigned)EButtonVisibility::INGAME; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
 		{
 			if(m_aCachedVisibilities[Iterator] != 2)
 				m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
@@ -2522,19 +2522,19 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	Left.Margin(5.0f, &Left);
 	static CScrollRegion s_VisibilityScrollRegion;
 	vec2 ScrollOffset(0.0f, 0.0f);
-	s_VisibilityScrollRegion.Begin(&Left, ScrollOffset);
+	s_VisibilityScrollRegion.Begin(&Left, &ScrollOffset);
 	Left.y += ScrollOffset.y;
 	SMenuButtonProperties VisibilityProp;
 	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.8f);
 	VisibilityProp.m_UseIconFont = true;
 	static CButtonContainer s_VisibilityButtons[(int)EButtonVisibility::NUM_VISIBILITIES];
 	// [0] = -, [1] = +, [2] = dont have this visibility, meaning 3 types of visibility.
-	const auto VisibilityLabelFuc = std::array<std::function<char*()>, 3>{
-        []() -> char* { return FontIcons::FONT_ICON_MINUS; },
-        []() -> char* { return FontIcons::FONT_ICON_PLUS; },
-        []() -> char* { return "X"; }
+	const auto VisibilityLabelFuc = std::array<std::function<const char*()>, 3>{
+        []() -> const char* { return FontIcons::FONT_ICON_MINUS; },
+        []() -> const char* { return FontIcons::FONT_ICON_PLUS; },
+        []() -> const char* { return "X"; }
 	};
-	const std::array<char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
+	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
 																							 "Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
 	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
 	{
@@ -2543,10 +2543,10 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		EditBox.VSplitLeft(25.0f, &A, &EditBox);
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
 		{
-			if(Ui()->DoButtonMenu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
+			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
 			{
-				m_aCachedVisibilities += 2;
-				m_aCachedVisibilities %= 3;
+				m_aCachedVisibilities[Current] += 2;
+				m_aCachedVisibilities[Current] %= 3;
 				m_UnsavedChanges = true;
 			}
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
