@@ -2540,9 +2540,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	{
 		Left.HSplitTop(25.0f, &EditBox, &Left);
 		Left.HSplitTop(5.0f, nullptr, &Left);
-		EditBox.VSplitLeft(25.0f, &A, &EditBox);
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
 		{
+			EditBox.VSplitLeft(25.0f, &A, &EditBox);
 			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
 			{
 				m_aCachedVisibilities[Current] += 2;
