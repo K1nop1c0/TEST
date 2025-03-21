@@ -13,11 +13,13 @@
 
 #include <chrono>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 #include <set>
+#include <array>
 
 class CJsonWriter;
 typedef struct _json_value json_value;
@@ -86,6 +88,7 @@ private:
 
 	static constexpr const char *const SHAPE_NAMES[(int)EButtonShape::NUM_SHAPES] = {"rect", "circle"};
 
+	//12 Visibilities
 	enum class EButtonVisibility
 	{
 		INGAME,
@@ -711,6 +714,7 @@ private:
 	int m_EditCommandNumber = 0;
 	bool m_UnsavedChanges = false;
 	std::optional<CUnitRect> m_ShownRect;
+	std::array<int, (size_t)EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
 
 	CUIElement m_DecreaseButton;
 	CUIElement m_IncreaseButton;
@@ -721,6 +725,7 @@ private:
 	CUIElement m_RemoveButton;
 	CUIElement m_ConfirmButton;
 	CUIElement m_CancelButton;
+	std::vector<CUIElement> m_vVisibilityButtons;
 
 	//The biggest value's length is shorter than 6
 	CLineInputBuffered<7> m_InputX;

@@ -2,9 +2,11 @@
 #include "engine/textrender.h"
 
 #include <algorithm>
+#include <array>
 #include <base/log.h>
 #include <base/system.h>
 
+#include <cstddef>
 #include <engine/client.h>
 #include <engine/external/json-parser/json.h>
 #include <engine/shared/config.h>
@@ -23,7 +25,7 @@
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
-#include <optional>
+#include <iterator>
 
 using namespace std::chrono_literals;
 
@@ -1750,6 +1752,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	m_InputLabel.Set("");
 	m_vCachedCommands.clear();
 	m_vCachedCommands.reserve(5);
+	m_aCachedVisibilities.fill(2); // 2 means don't have the visibility.
 
 	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
 	m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
@@ -1757,6 +1760,8 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	m_InputW.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_W).c_str());
 	m_InputH.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_H).c_str());
 	m_CachedShape = m_pSelectedButton->m_Shape;
+	for(const auto &Visibility : m_pSelectedButton->m_vVisibilities)
+		m_aCachedVisibilities[(int)Visibility.m_Type] = Visibility.m_Parity ? 1 : 0;
 
 	//These are behavior values.
 	if(m_pSelectedButton->m_pBehavior != nullptr)
@@ -2101,6 +2106,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_RemoveButton.Init(Ui(), -1);
 		m_ConfirmButton.Init(Ui(), -1);
 		m_CancelButton.Init(Ui(), -1);
+		std::for_each(m_vVisibilityButtons.begin(), m_vVisibilityButtons.end(), [&](auto &Button){
+			Button.Init(Ui(), -1);
+		});
 		IsInited = true;
 	}
 
@@ -2221,7 +2229,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 		if(m_EditBehaviorType == 1)
 		{
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
+			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
 			dbg_assert(false, "m_vCachedCommands.size < number, in Dropdown behavior choosing space");
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
@@ -2256,7 +2264,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			if(m_EditCommandNumber > 0)
 			m_EditCommandNumber --;
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
+			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
 			dbg_assert(false, "commands.size < number at do decrease button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
@@ -2275,7 +2283,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
 				m_UnsavedChanges = true;
 			}
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
+			if(m_vCachedCommands.size() <= static_cast<size_t>m_EditCommandNumber)
 			dbg_assert(false, "commands.size < number at do increase button");
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
@@ -2415,9 +2423,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 
 
 	//Combine left and right together.
-	Left.w += Right.w;
-	Left.HSplitTop(25.0f, &EditBox, &Left);
-	Left.HSplitTop(5.0f, nullptr, &Left);
+	Right.w += Left.w;
+	Right.HSplitTop(25.0f, &EditBox, &Right);
+	Right.HSplitTop(5.0f, nullptr, &Right);
 	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
 	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
 	A.VMargin((A.w - 50.0f) / 2.0f, &A);
@@ -2432,6 +2440,12 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton->m_UnitRect.m_Y = std::stoi(m_InputY.GetString());
 		m_pSelectedButton->m_UnitRect.m_W = std::stoi(m_InputW.GetString());
 		m_pSelectedButton->m_UnitRect.m_H = std::stoi(m_InputH.GetString());
+		m_pSelectedButton->m_vVisibilities.clear()
+		for(const unsigned Iterator; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
+		{
+			if(m_aCachedVisibilities[Iterator] != 2)
+				m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
+		}
 		m_pSelectedButton->UpdateScreenFromUnitRect();
 		m_pSelectedButton->m_Shape = m_CachedShape;
 		if(m_EditBehaviorType == 0)
@@ -2472,7 +2486,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_UnsavedChanges = false;
 	}
 
-	Left.HSplitTop(25.0f, &EditBox, &Left);
+	Right.HSplitTop(25.0f, &EditBox, &Right);
 	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
 	A.VMargin((A.w - 150.0f) / 2.0f, &A);
 	B.VMargin((B.w - 150.0f) / 2.0f, &B);
@@ -2484,8 +2498,13 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
 		m_vTouchButtons.push_back(std::move(NewButton));
 		m_pSelectedButton = &(m_vTouchButtons.back());
-		for(auto &TouchButton : m_vTouchButtons)
-			TouchButton.UpdatePointers();
+		m_pSelectedButton->UpdatePointers();
+		// Keep the new button's visibility equal to the last selected one.
+		for(const unsigned Iterator; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
+		{
+			if(m_aCachedVisibilities[Iterator] != 2)
+				m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
+		}
 		m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
 		m_ShownRect = std::nullopt;
 	}
@@ -2499,4 +2518,38 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pCachedBehavior = nullptr;
 	}
 	//Visibilities time. This is button's visibility, not virtual.
+	Left.h = 150.0f;
+	Left.Margin(5.0f, &Left);
+	static CScrollRegion s_VisibilityScrollRegion;
+	vec2 ScrollOffset(0.0f, 0.0f);
+	s_VisibilityScrollRegion.Begin(&Left, ScrollOffset);
+	Left.y += ScrollOffset.y;
+	SMenuButtonProperties VisibilityProp;
+	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.8f);
+	VisibilityProp.m_UseIconFont = true;
+	static CButtonContainer s_VisibilityButtons[(int)EButtonVisibility::NUM_VISIBILITIES];
+	// [0] = -, [1] = +, [2] = dont have this visibility, meaning 3 types of visibility.
+	const auto VisibilityLabelFuc = std::array<std::function<char*()>, 3>{
+        []() -> char* { return FontIcons::FONT_ICON_MINUS; },
+        []() -> char* { return FontIcons::FONT_ICON_PLUS; },
+        []() -> char* { return "X"; }
+	};
+	const std::array<char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
+																							 "Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
+	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
+	{
+		Left.HSplitTop(25.0f, &EditBox, &Left);
+		Left.HSplitTop(5.0f, nullptr, &Left);
+		EditBox.VSplitLeft(25.0f, &A, &EditBox);
+		if(s_VisibilityScrollRegion.AddRect(EditBox))
+		{
+			if(Ui()->DoButtonMenu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
+			{
+				m_aCachedVisibilities += 2;
+				m_aCachedVisibilities %= 3;
+				m_UnsavedChanges = true;
+			}
+			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
+		}
+	}
 }
