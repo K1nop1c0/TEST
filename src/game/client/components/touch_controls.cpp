@@ -2500,7 +2500,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton = &(m_vTouchButtons.back());
 		m_pSelectedButton->UpdatePointers();
 		// Keep the new button's visibility equal to the last selected one.
-		for(const unsigned Iterator; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
+		for(unsigned Iterator = (unsigned)EButtonVisibility::INGAME; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
 		{
 			if(m_aCachedVisibilities[Iterator] != 2)
 				m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
