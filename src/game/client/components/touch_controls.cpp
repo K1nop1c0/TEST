@@ -6,7 +6,6 @@
 #include <base/log.h>
 #include <base/system.h>
 
-#include <cstddef>
 #include <engine/client.h>
 #include <engine/external/json-parser/json.h>
 #include <engine/shared/config.h>
@@ -2522,7 +2521,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pCachedBehavior = nullptr;
 	}
 	//Visibilities time. This is button's visibility, not virtual.
-	/**
 	Left.h = 150.0f;
 	Left.Margin(5.0f, &Left);
 	static CScrollRegion s_VisibilityScrollRegion;
@@ -2557,5 +2555,4 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
 		}
 	}
-	**/
 }
