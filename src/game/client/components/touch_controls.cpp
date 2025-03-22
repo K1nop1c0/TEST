@@ -2462,10 +2462,10 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
 			*/
 		}
+		char fBuf[640];
+		str_format(fBuf, sizeof(fBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
+		Console()->ExecuteLine(fBuf);
 	}
-	char fBuf[640];
-	str_format(fBuf, sizeof(fBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
-	Console()->ExecuteLine(fBuf);
 
 
 	//Combine left and right together.
