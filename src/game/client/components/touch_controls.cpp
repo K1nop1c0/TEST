@@ -2115,10 +2115,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		IsInited = true;
 	}
 
-    CUIRect Left, Right, A, B;
+    CUIRect Left, Right, A, B, EditBox, VisRec, C;
     MainView.VSplitLeft(MainView.w / 4.0f, &Left, &Right);
     Left.Margin(5.0f, &Left);
-    CUIRect EditBox;
     Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	EditBox.VSplitLeft(25.0f, &A, &EditBox);
@@ -2210,7 +2209,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	const char* LabelTypes[] = {"Plain", "Localized", "Icon"};
 
 	//Right for behaviors, left(center) for visibility. They share 0.75 width of mainview, each 0.375.
-	Right.VSplitMid(&Left, &Right);
+	Right.VSplitMid(&VisRec, &Right);
 	Right.Margin(5.0f, &Right);
 	Right.HSplitTop(25.0f, &EditBox, &Right);
 	Right.HSplitTop(5.0f, nullptr, &Right);
@@ -2424,11 +2423,53 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 	}
 
+	//Visibilities time. This is button's visibility, not virtual.
+	VisRec.Margin(5.0f, &VisRec);
+	static CScrollRegion s_VisibilityScrollRegion;
+	CScrollRegionParams ScrollParams;
+	ScrollParams.m_ScrollbarWidth = 10.0f;
+	ScrollParams.m_ScrollbarMargin = 5.0f;
+	vec2 ScrollOffset(0.0f, 0.0f);
+	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset, &ScrollParams);
+	VisRec.y += ScrollOffset.y;
+	SMenuButtonProperties VisibilityProp;
+	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
+	VisibilityProp.m_UseIconFont = true;
+	static CButtonContainer s_VisibilityButtons[(int)EButtonVisibility::NUM_VISIBILITIES];
+	// [0] = -, [1] = +, [2] = dont have this visibility, meaning 3 types of visibility.
+	const auto VisibilityLabelFuc = std::array<std::function<const char*()>, 3>{
+        []() -> const char* { return FontIcons::FONT_ICON_MINUS; },
+        []() -> const char* { return FontIcons::FONT_ICON_PLUS; },
+        []() -> const char* { return "X"; }
+	};
+	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
+	"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
+	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
+	{
+		VisRec.HSplitTop(30.0f, &EditBox, &VisRec);
+		if(s_VisibilityScrollRegion.AddRect(EditBox))
+		{
+			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
+			EditBox.VSplitLeft(25.0f, &A, &EditBox);
+			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
+			{
+				m_aCachedVisibilities[Current] += 2;
+				m_aCachedVisibilities[Current] %= 3;
+				m_UnsavedChanges = true;
+			}
+			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
+		}
+	}
+	char fBuf[640];
+	str_format(fBuf, sizeof(fBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
+	Console()->ExecuteLine(fBuf);
+
 
 	//Combine left and right together.
-	Right.w += Left.w;
-	Right.HSplitTop(25.0f, &EditBox, &Right);
-	Right.HSplitTop(5.0f, nullptr, &Right);
+	Left.w = MainView.w;
+	Left.w -= 10.0f;
+	Left.HSplitTop(25.0f, &EditBox, &Left);
+	Left.HSplitTop(5.0f, nullptr, &Left);
 	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
 	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
 	A.VMargin((A.w - 50.0f) / 2.0f, &A);
@@ -2489,7 +2530,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_UnsavedChanges = false;
 	}
 
-	Right.HSplitTop(25.0f, &EditBox, &Right);
+	Left.HSplitTop(25.0f, &EditBox, &Left);
 	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
 	A.VMargin((A.w - 150.0f) / 2.0f, &A);
 	B.VMargin((B.w - 150.0f) / 2.0f, &B);
@@ -2519,44 +2560,5 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_vTouchButtons.erase(DeleteIt);
 		m_pSelectedButton = nullptr;
 		m_pCachedBehavior = nullptr;
-	}
-
-	//Visibilities time. This is button's visibility, not virtual.
-	Left.h = 150.0f;
-	Left.Margin(5.0f, &Left);
-	static CScrollRegion s_VisibilityScrollRegion;
-	CScrollRegionParams ScrollParams;
-	ScrollParams.m_ScrollbarWidth = 10.0f;
-	ScrollParams.m_ScrollbarMargin = 5.0f;
-	vec2 ScrollOffset(0.0f, 0.0f);
-	s_VisibilityScrollRegion.Begin(&Left, &ScrollOffset, &ScrollParams);
-	Left.y += ScrollOffset.y;
-	SMenuButtonProperties VisibilityProp;
-	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
-	VisibilityProp.m_UseIconFont = true;
-	static CButtonContainer s_VisibilityButtons[(int)EButtonVisibility::NUM_VISIBILITIES];
-	// [0] = -, [1] = +, [2] = dont have this visibility, meaning 3 types of visibility.
-	const auto VisibilityLabelFuc = std::array<std::function<const char*()>, 3>{
-        []() -> const char* { return FontIcons::FONT_ICON_MINUS; },
-        []() -> const char* { return FontIcons::FONT_ICON_PLUS; },
-        []() -> const char* { return "X"; }
-	};
-	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
-																							 "Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
-	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
-	{
-		Left.HSplitTop(30.0f, &EditBox, &Left);
-		if(s_VisibilityScrollRegion.AddRect(EditBox))
-		{
-			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
-			EditBox.VSplitLeft(25.0f, &A, &EditBox);
-			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
-			{
-				m_aCachedVisibilities[Current] += 2;
-				m_aCachedVisibilities[Current] %= 3;
-				m_UnsavedChanges = true;
-			}
-			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
-		}
 	}
 }
