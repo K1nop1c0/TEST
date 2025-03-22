@@ -2115,7 +2115,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		IsInited = true;
 	}
 
-    CUIRect Left, Right, A, B, EditBox, VisRec, C;
+    CUIRect Left, Right, A, B, EditBox, VisRec;
     MainView.VSplitLeft(MainView.w / 4.0f, &Left, &Right);
     Left.Margin(5.0f, &Left);
     Left.HSplitTop(25.0f, &EditBox, &Left);
@@ -2424,6 +2424,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	}
 
 	//Visibilities time. This is button's visibility, not virtual.
+	VisRect.h = 150.0f;
 	VisRec.Margin(5.0f, &VisRec);
 	static CScrollRegion s_VisibilityScrollRegion;
 	CScrollRegionParams ScrollParams;
