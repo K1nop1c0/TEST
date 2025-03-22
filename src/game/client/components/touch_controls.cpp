@@ -2210,7 +2210,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	const char* LabelTypes[] = {"Plain", "Localized", "Icon"};
 
 	//Right for behaviors, left(center) for visibility. They share 0.75 width of mainview, each 0.375.
-	Right.VSplitRight(Right.w / 2.0f, &Left, &Right);
+	Right.VSplitMid(&Left, &Right);
 	Right.Margin(5.0f, &Right);
 	Right.HSplitTop(25.0f, &EditBox, &Right);
 	Right.HSplitTop(5.0f, nullptr, &Right);
@@ -2520,15 +2520,17 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton = nullptr;
 		m_pCachedBehavior = nullptr;
 	}
+
 	//Visibilities time. This is button's visibility, not virtual.
 	Left.h = 150.0f;
 	Left.Margin(5.0f, &Left);
 	static CScrollRegion s_VisibilityScrollRegion;
 	vec2 ScrollOffset(0.0f, 0.0f);
 	s_VisibilityScrollRegion.Begin(&Left, &ScrollOffset);
-	Left.y += ScrollOffset.y;
+	A = Left;
+	A.y += ScrollOffset.y;
 	SMenuButtonProperties VisibilityProp;
-	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.8f);
+	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
 	VisibilityProp.m_UseIconFont = true;
 	static CButtonContainer s_VisibilityButtons[(int)EButtonVisibility::NUM_VISIBILITIES];
 	// [0] = -, [1] = +, [2] = dont have this visibility, meaning 3 types of visibility.
@@ -2541,8 +2543,8 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 																							 "Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
 	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
 	{
-		Left.HSplitTop(25.0f, &EditBox, &Left);
-		Left.HSplitTop(5.0f, nullptr, &Left);
+		A.HSplitTop(25.0f, &EditBox, &A);
+		A.HSplitTop(5.0f, nullptr, &A);
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
 		{
 			EditBox.VSplitLeft(25.0f, &A, &EditBox);
