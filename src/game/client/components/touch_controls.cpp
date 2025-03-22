@@ -2424,7 +2424,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	}
 
 	//Visibilities time. This is button's visibility, not virtual.
-	VisRect.h = 150.0f;
+	VisRec.h = 150.0f;
 	VisRec.Margin(5.0f, &VisRec);
 	static CScrollRegion s_VisibilityScrollRegion;
 	CScrollRegionParams ScrollParams;
