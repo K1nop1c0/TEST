@@ -2525,10 +2525,12 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	Left.h = 150.0f;
 	Left.Margin(5.0f, &Left);
 	static CScrollRegion s_VisibilityScrollRegion;
+	CScrollRegionParams ScrollParams;
+	ScrollParams.m_ScrollbarWidth = 10.0f;
+	ScrollParams.m_ScrollbarMargin = 5.0f;
 	vec2 ScrollOffset(0.0f, 0.0f);
-	s_VisibilityScrollRegion.Begin(&Left, &ScrollOffset);
-	A = Left;
-	A.y += ScrollOffset.y;
+	s_VisibilityScrollRegion.Begin(&Left, &ScrollOffset, &ScrollParams);
+	Left.y += ScrollOffset.y;
 	SMenuButtonProperties VisibilityProp;
 	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
 	VisibilityProp.m_UseIconFont = true;
@@ -2543,10 +2545,10 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 																							 "Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
 	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
 	{
-		A.HSplitTop(25.0f, &EditBox, &A);
-		A.HSplitTop(5.0f, nullptr, &A);
+		Left.HSplitTop(30.0f, &EditBox, &Left);
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
 		{
+			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
 			EditBox.VSplitLeft(25.0f, &A, &EditBox);
 			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
 			{
