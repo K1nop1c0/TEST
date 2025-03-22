@@ -2522,6 +2522,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	}
 
 	//Visibilities time. This is button's visibility, not virtual.
+	/*
 	Left.h = 150.0f;
 	Left.Margin(5.0f, &Left);
 	static CScrollRegion s_VisibilityScrollRegion;
@@ -2548,7 +2549,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		Left.HSplitTop(30.0f, &EditBox, &Left);
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
 		{
-			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
+			EditBox.HSplitTop(5.0f, nullptr, &EditBox)
 			EditBox.VSplitLeft(25.0f, &A, &EditBox);
 			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
 			{
@@ -2559,4 +2560,5 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
 		}
 	}
+	*/
 }
