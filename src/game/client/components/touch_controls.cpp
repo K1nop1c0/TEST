@@ -2443,6 +2443,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
         []() -> const char* { return FontIcons::FONT_ICON_PLUS; },
         []() -> const char* { return "X"; }
 	};
+	char fkBuf[640];
+	str_format(fkBuf, sizeof(fkBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
+	Console()->ExecuteLine(fkBuf);
 	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
 	"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
 	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
@@ -2450,7 +2453,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		VisRec.HSplitTop(30.0f, &EditBox, &VisRec);
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
 		{
-			/*
 			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
 			EditBox.VSplitLeft(25.0f, &A, &EditBox);
 			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
@@ -2460,7 +2462,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 				m_UnsavedChanges = true;
 			}
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
-			*/
 		}
 		char fBuf[640];
 		str_format(fBuf, sizeof(fBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
