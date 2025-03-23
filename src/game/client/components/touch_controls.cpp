@@ -2,6 +2,7 @@
 #include "base/color.h"
 #include "engine/graphics.h"
 #include "engine/textrender.h"
+#include "game/client/ui_rect.h"
 
 #include <algorithm>
 #include <array>
@@ -249,7 +250,7 @@ void CTouchControls::CTouchButton::Render() const
 	{
 	case EButtonShape::RECT:
 	{
-		m_ScreenRect.Draw(ButtonColor, m_BackgroundCorners, 10.0f);
+		m_ScreenRect.Draw(ButtonColor, Selected ? IGraphics::CORNER_NONE : m_BackgroundCorners, 10.0f);
 		break;
 	}
 	case EButtonShape::CIRCLE:
@@ -1966,7 +1967,8 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			//Insert visible but not selected buttons.
 			vVisibleButtonRects.insert(TouchButton.m_UnitRect);
 		}
-		else if(m_pSelectedButton == &TouchButton)
+		// If selected button not visible, unselect it.
+		else if(m_pSelectedButton == &TouchButton && !GameClient()->m_Menus.IsActive())
 		{
 			m_pSelectedButton = nullptr;
 		}
@@ -2431,15 +2433,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	VisRec.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
 	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset);
 	VisRec.y += ScrollOffset.y;
-	SMenuButtonProperties VisibilityProp;
-	VisibilityProp.m_UseIconFont = true;
-	static CButtonContainer s_VisibilityButtons[(int)EButtonVisibility::NUM_VISIBILITIES];
-	// [0] = -, [1] = +, [2] = dont have this visibility, meaning 3 types of visibility.
-	const auto VisibilityLabelFuc = std::array<std::function<const char*()>, 3>{
-        []() -> const char* { return FontIcons::FONT_ICON_MINUS; },
-        []() -> const char* { return FontIcons::FONT_ICON_PLUS; },
-        []() -> const char* { return "X"; }
-	};
 	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
 	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
 	"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
@@ -2454,9 +2447,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 				m_aCachedVisibilities[Current] += 2;
 				m_aCachedVisibilities[Current] %= 3;
 			}
-			TextRender()->TextColor(LabelColor[m_aCachedVisibilities[Current] ? 1 : 0]);
+			TextRender()->TextColor(LabelColor[m_aCachedVisibilities[Current] == 2 ? 0 : 1]);
 			char aBuf[20];
-			str_format(aBuf, sizeof(aBuf), "%s%s", m_aCachedVisibilities[Current] == 0 ? "-" : "", VisibilityStrings[Current]);
+			str_format(aBuf, sizeof(aBuf), "%s%s", m_aCachedVisibilities[Current] == 0 ? "-" : "+", VisibilityStrings[Current]);
 			Ui()->DoLabel(&EditBox, aBuf, 16.0f, TEXTALIGN_MC);
 			TextRender()->TextColor(TextRender()->DefaultTextColor());
 		}
@@ -2471,7 +2464,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
 	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
-	A.VMargin((A.w - 50.0f) / 2.0f, &A);
+	A.VMargin((A.w - 100.0f) / 2.0f, &A);
 	const auto &&ConfirmButtonLabelFunc = []() { return "Save"; };
 	static CButtonContainer s_ConfirmButton;
 	if(Ui()->DoButton_Menu(m_ConfirmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
@@ -2519,7 +2512,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		Ui()->DoLabel(&A, Localize("Unsaved changes"), 10.0f, TEXTALIGN_MC);
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	}
-	B.VMargin((B.w - 50.0f) / 2.0f, &B);
+	B.VMargin((B.w - 100.0f) / 2.0f, &B);
 	const auto &&CancelButtonLabelFunc = []() { return "Cancel"; };
 	static CButtonContainer s_CancelButton;
 	if(Ui()->DoButton_Menu(m_CancelButton, &s_CancelButton, CancelButtonLabelFunc, &B))
@@ -2560,4 +2553,40 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_pSelectedButton = nullptr;
 		m_pCachedBehavior = nullptr;
 	}
+}
+
+void CTouchControls::RenderVirtualVisibilityEditor(CUIRect MainView)
+{
+	CUIRect EditBox;
+	static std::array<int, EButtonVisibility::NUM_VISIBILITIES> s_aVisibilityIds = {};
+	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
+	CUIRect Label;
+	MainView.Margin(10.0f, &MainView);
+	MainView.HSplitTop(25.0f, &Label, &MainView);
+	MainView.HMargin(5.0f, &MainView);
+	Ui()->DoLabel(&Label, Localize("Edit Visibilities"), 20.0f, TEXTALIGN_MC);
+	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
+		"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
+	static CScrollRegion s_VirtualVisibilityScrollRegion;
+	vec2 ScrollOffset(0.0f, 0.0f);
+	MainView.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
+	s_VirtualVisibilityScrollRegion.Begin(&MainView, &ScrollOffset);
+	MainView.y += ScrollOffset.y;
+	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
+	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
+	{
+		MainView.HSplitTop(30.0f, &EditBox, &MainView);
+		if(s_VirtualVisibilityScrollRegion.AddRect(EditBox))
+		{
+			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
+			if(Ui()->DoButtonLogic(&s_aVisibilityIds[Current], 0, &EditBox, BUTTONFLAG_LEFT))
+			{
+				m_vVirtualVisibilities[Current] = !m_vVirtualVisibilities[Current];
+			}
+			TextRender()->TextColor(LabelColor[m_vVirtualVisibilities[Current] ? 1 : 0]);
+			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 16.0f, TEXTALIGN_MC);
+			TextRender()->TextColor(TextRender()->DefaultTextColor());
+		}
+	}
+	s_VirtualVisibilityScrollRegion.End();
 }

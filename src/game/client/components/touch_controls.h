@@ -56,6 +56,7 @@ public:
 	void SaveConfigurationToClipboard();
 	void ResetVirtualVisibilities();
 	void RenderTouchButtonEditor(CUIRect MainView);
+	void RenderVirtualVisibilityEditor(CUIRect MainView);
 
 	EDirectTouchIngameMode DirectTouchIngame() const { return m_DirectTouchIngame; }
 	void SetDirectTouchIngame(EDirectTouchIngameMode DirectTouchIngame)
