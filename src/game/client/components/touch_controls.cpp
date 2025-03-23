@@ -1,4 +1,6 @@
 #include "touch_controls.h"
+#include "base/color.h"
+#include "engine/graphics.h"
 #include "engine/textrender.h"
 
 #include <algorithm>
@@ -2431,8 +2433,10 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	ScrollParams.m_ScrollbarWidth = 10.0f;
 	ScrollParams.m_ScrollbarMargin = 5.0f;
 	vec2 ScrollOffset(0.0f, 0.0f);
+	VisRec.Draw(ColorRGBA(1.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 2.0f);
 	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset, &ScrollParams);
 	VisRec.y += ScrollOffset.y;
+	VisRec.Draw(ColorRGBA(0.0f, 0.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 2.0f);
 	SMenuButtonProperties VisibilityProp;
 	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
 	VisibilityProp.m_UseIconFont = true;
@@ -2443,9 +2447,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
         []() -> const char* { return FontIcons::FONT_ICON_PLUS; },
         []() -> const char* { return "X"; }
 	};
-	char fkBuf[640];
-	str_format(fkBuf, sizeof(fkBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
-	Console()->ExecuteLine(fkBuf);
 	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
 	"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
 	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
@@ -2463,9 +2464,9 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			}
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
 		}
-		char fBuf[640];
+		/*char fBuf[640];
 		str_format(fBuf, sizeof(fBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
-		Console()->ExecuteLine(fBuf);
+		Console()->ExecuteLine(fBuf);*/
 	}
 
 
