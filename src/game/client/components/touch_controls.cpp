@@ -2558,7 +2558,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 void CTouchControls::RenderVirtualVisibilityEditor(CUIRect MainView)
 {
 	CUIRect EditBox;
-	static std::array<int, EButtonVisibility::NUM_VISIBILITIES> s_aVisibilityIds = {};
+	static std::array<int, (unsigned)EButtonVisibility::NUM_VISIBILITIES> s_aVisibilityIds = {};
 	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
 	CUIRect Label;
 	MainView.Margin(10.0f, &MainView);
@@ -2572,7 +2572,6 @@ void CTouchControls::RenderVirtualVisibilityEditor(CUIRect MainView)
 	MainView.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
 	s_VirtualVisibilityScrollRegion.Begin(&MainView, &ScrollOffset);
 	MainView.y += ScrollOffset.y;
-	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
 	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
 	{
 		MainView.HSplitTop(30.0f, &EditBox, &MainView);
