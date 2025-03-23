@@ -1753,6 +1753,7 @@ void CTouchControls::OnOpenTouchButtonEditor(bool Force)
 	m_InputLabel.Set("");
 	m_vCachedCommands.clear();
 	m_vCachedCommands.reserve(5);
+	Console()->ExecuteLine("Filled");
 	m_aCachedVisibilities.fill(2); // 2 means don't have the visibility.
 
 	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
@@ -2429,16 +2430,10 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	VisRec.h = 150.0f;
 	VisRec.Margin(5.0f, &VisRec);
 	static CScrollRegion s_VisibilityScrollRegion;
-	CScrollRegionParams ScrollParams;
-	ScrollParams.m_ScrollbarWidth = 10.0f;
-	ScrollParams.m_ScrollbarMargin = 5.0f;
 	vec2 ScrollOffset(0.0f, 0.0f);
-	VisRec.Draw(ColorRGBA(1.0f, 0.0f, 0.0f, 0.25f), IGraphics::CORNER_ALL, 2.0f);
-	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset, &ScrollParams);
+	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset);
 	VisRec.y += ScrollOffset.y;
-	VisRec.Draw(ColorRGBA(0.0f, 0.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 2.0f);
 	SMenuButtonProperties VisibilityProp;
-	VisibilityProp.m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
 	VisibilityProp.m_UseIconFont = true;
 	static CButtonContainer s_VisibilityButtons[(int)EButtonVisibility::NUM_VISIBILITIES];
 	// [0] = -, [1] = +, [2] = dont have this visibility, meaning 3 types of visibility.
@@ -2458,15 +2453,17 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 			EditBox.VSplitLeft(25.0f, &A, &EditBox);
 			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
 			{
+				char aBif[32];
+				str_format(aBif, sizeof(aBif), "Current = %d, Before = %d", Current, m_aCachedVisibilities[Current]);
+				Console()->ExecuteLine(aBif);
 				m_aCachedVisibilities[Current] += 2;
 				m_aCachedVisibilities[Current] %= 3;
+				str_format(aBif, sizeof(aBif), "Current = %d, After = %d", Current, m_aCachedVisibilities[Current]);
+				Console()->ExecuteLine(aBif);
 				m_UnsavedChanges = true;
 			}
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
 		}
-		/*char fBuf[640];
-		str_format(fBuf, sizeof(fBuf), "echo VisRect.x=%f,y=%f,w=%f,h=%f,Left.x=%f,y=%f,w=%f,h=%f,Right.x=%f", VisRec.x, VisRec.y, VisRec.w, VisRec.h, Left.x, Left.y, Left.w, Left.h, Right.x);
-		Console()->ExecuteLine(fBuf);*/
 	}
 	s_VisibilityScrollRegion.End();
 
