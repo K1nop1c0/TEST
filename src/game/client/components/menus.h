@@ -689,7 +689,6 @@ public:
 	bool IsServerRunning() const;
 
 	virtual void OnInit() override;
-	void OnConsoleInit() override;
 
 	virtual void OnStateChange(int NewState, int OldState) override;
 	virtual void OnWindowResize() override;
