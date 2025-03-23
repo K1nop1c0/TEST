@@ -3,12 +3,14 @@
 #ifndef GAME_CLIENT_COMPONENTS_MENUS_H
 #define GAME_CLIENT_COMPONENTS_MENUS_H
 
+#include "game/client/components/touch_controls.h"
 #include <base/types.h>
 #include <base/vmath.h>
 
 #include <chrono>
 #include <deque>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 #include <engine/console.h>
@@ -100,6 +102,7 @@ class CMenus : public CComponent
 	void DoJoystickAxisPicker(CUIRect View);
 	void DoJoystickBar(const CUIRect *pRect, float Current, float Tolerance, bool Active);
 
+	std::optional<std::chrono::nanoseconds> m_SkinListLastRefreshTime;
 	bool m_SkinListScrollToSelected = false;
 	std::optional<std::chrono::nanoseconds> m_SkinList7LastRefreshTime;
 	std::optional<std::chrono::nanoseconds> m_SkinPartsList7LastRefreshTime;
@@ -598,6 +601,13 @@ protected:
 	void RenderCommunityIcon(const SCommunityIcon *pIcon, CUIRect Rect, bool Active);
 	void UpdateCommunityIcons();
 
+	// skin favorite list
+	std::unordered_set<std::string> m_SkinFavorites;
+	static void Con_AddFavoriteSkin(IConsole::IResult *pResult, void *pUserData);
+	static void Con_RemFavoriteSkin(IConsole::IResult *pResult, void *pUserData);
+	static void ConfigSaveCallback(IConfigManager *pConfigManager, void *pUserData);
+	void OnConfigSave(IConfigManager *pConfigManager);
+
 	// found in menus_settings.cpp
 	void RenderLanguageSettings(CUIRect MainView);
 	bool RenderLanguageSelection(CUIRect MainView);
@@ -679,6 +689,7 @@ public:
 	bool IsServerRunning() const;
 
 	virtual void OnInit() override;
+	void OnConsoleInit() override;
 
 	virtual void OnStateChange(int NewState, int OldState) override;
 	virtual void OnWindowResize() override;
@@ -850,5 +861,29 @@ private:
 	bool RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha, float DarkestLight);
 
 	CServerProcess m_ServerProcess;
+
+	// found in menus_ingame_touch_controls.cpp
+	CTouchControls::EButtonShape m_CachedShape;
+	int m_EditBehaviorType = 0; //Default = bind
+	int m_PredefinedBehaviorType = 0; //Default = extra menu
+	int m_CachedNumber = 0;
+	int m_EditCommandNumber = 0;
+	bool m_UnsavedChanges = false;
+	std::array<int, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
+	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aButtonVisibilityIds = {};
+	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVisibilityIds = {};
+
+	//The biggest value's length is shorter than 7
+	CLineInputBuffered<7> m_InputX;
+	CLineInputBuffered<7> m_InputY;
+	CLineInputBuffered<7> m_InputW;
+	CLineInputBuffered<7> m_InputH;
+	CLineInputBuffered<1024> m_InputCommand;
+	CLineInputBuffered<1024> m_InputLabel;
+
+	void OnOpenTouchButtonEditor(bool Force = false);
+	void InputPosFunction(CLineInput *Input, std::string *SavedString);
+	void RenderTouchButtonEditor(CUIRect MainView);
+	void RenderVirtualVisibilityEditor(CUIRect MainView);
 };
 #endif
