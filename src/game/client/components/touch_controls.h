@@ -641,6 +641,8 @@ public:
 	CTouchButton *m_pSelectedButton = nullptr;
 	std::optional<CTouchControls::CUnitRect> m_ShownRect;
 	std::array<bool, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVirtualVisibilities;
+	std::vector<CBindToggleTouchButtonBehavior::CCommand> m_vCachedCommands;
+	CTouchButton *m_pLastSelectedButton = nullptr;
 
 	void NewButton();
 	void DeleteButton()
@@ -656,7 +658,5 @@ public:
 		{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
 		{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
 		{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
-
-};
 
 #endif

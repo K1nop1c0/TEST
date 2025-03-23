@@ -866,11 +866,9 @@ private:
 	CTouchControls::EButtonShape m_CachedShape;
 	int m_EditBehaviorType = 0; //Default = bind
 	int m_PredefinedBehaviorType = 0; //Default = extra menu
-	std::vector<CTouchControls::CBindToggleTouchButtonBehavior::CCommand> m_vCachedCommands;
 	int m_CachedNumber = 0;
 	int m_EditCommandNumber = 0;
 	bool m_UnsavedChanges = false;
-	CTouchControls::CTouchButton *m_pLastSelectedButton = nullptr;
 	std::array<int, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
 	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aButtonVisibilityIds = {};
 	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVisibilityIds = {};

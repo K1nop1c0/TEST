@@ -19,9 +19,9 @@ static const ColorRGBA LABELCOLORS[2] = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), Col
 void CMenus::OnOpenTouchButtonEditor(bool Force)
 {
 	//If selected button changes, update the cached information in editor. You can also force changing.
-	if(m_pLastSelectedButton != nullptr && m_pLastSelectedButton == GameClient()->m_TouchControls.m_pSelectedButton && !Force)
+	if(GameClient()->m_TouchControls.m_pLastSelectedButton != nullptr && GameClient()->m_TouchControls.m_pLastSelectedButton == GameClient()->m_TouchControls.m_pSelectedButton && !Force)
 	{
-		m_pLastSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
+		GameClient()->m_TouchControls.m_pLastSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
 		return;
 	}
 
@@ -35,8 +35,8 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 	m_EditCommandNumber = 0;
 	m_InputCommand.Set("");
 	m_InputLabel.Set("");
-	m_vCachedCommands.clear();
-	m_vCachedCommands.reserve(5);
+	GameClient()->m_TouchControls.m_vCachedCommands.clear();
+	GameClient()->m_TouchControls.m_vCachedCommands.reserve(5);
 	m_aCachedVisibilities.fill(2); // 2 means don't have the visibility.
 
 	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
@@ -63,7 +63,7 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 			if(CastedBehavior == nullptr)
 				dbg_assert(false, "? CastedNULLPTR in bind");
 			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
-			m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
+			GameClient()->m_TouchControls.m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
 			m_InputCommand.Set(CastedBehavior->m_Command.c_str());
 			m_InputLabel.Set(CastedBehavior->m_Label.c_str());
 		}
@@ -73,12 +73,12 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
 			if(CastedBehavior == nullptr)
 				dbg_assert(false, "? CastedNULLPTR in bindtoggle");
-			m_vCachedCommands = CastedBehavior->m_vCommands;
+			GameClient()->m_TouchControls.m_vCachedCommands = CastedBehavior->m_vCommands;
 			m_EditCommandNumber = 0;
-			if(!m_vCachedCommands.empty())
+			if(!GameClient()->m_TouchControls.m_vCachedCommands.empty())
 			{
-				m_InputCommand.Set(m_vCachedCommands[0].m_Command.c_str());
-				m_InputLabel.Set(m_vCachedCommands[0].m_Label.c_str());
+				m_InputCommand.Set(GameClient()->m_TouchControls.m_vCachedCommands[0].m_Command.c_str());
+				m_InputLabel.Set(GameClient()->m_TouchControls.m_vCachedCommands[0].m_Label.c_str());
 			}
 		}
 		else if(BehaviorType == "predefined")
@@ -104,9 +104,9 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 		else //Empty
 		 	dbg_assert(false, "Detected out of bound value in m_EditBehaviorType");
 	}
-	if(m_vCachedCommands.size() < 2)
-		m_vCachedCommands.resize(2);
-	m_pLastSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
+	if(GameClient()->m_TouchControls.m_vCachedCommands.size() < 2)
+		GameClient()->m_TouchControls.m_vCachedCommands.resize(2);
+	GameClient()->m_TouchControls.m_pLastSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
 }
 
 void CMenus::InputPosFunction(CLineInput *Input, std::string *SavedString)
@@ -210,15 +210,15 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		m_EditBehaviorType = NewButtonBehavior;
 		if(m_EditBehaviorType == 0)
 		{
-			m_InputLabel.Set(m_vCachedCommands[0].m_Label.c_str());
-			m_InputCommand.Set(m_vCachedCommands[0].m_Command.c_str());
+			m_InputLabel.Set(GameClient()->m_TouchControls.m_vCachedCommands[0].m_Label.c_str());
+			m_InputCommand.Set(GameClient()->m_TouchControls.m_vCachedCommands[0].m_Command.c_str());
 		}
 		if(m_EditBehaviorType == 1)
 		{
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
-			dbg_assert(false, "m_vCachedCommands.size < number, in Dropdown behavior choosing space");
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+			if(GameClient()->m_TouchControls.m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
+			dbg_assert(false, "GameClient()->m_TouchControls.m_vCachedCommands.size < number, in Dropdown behavior choosing space");
+			m_InputLabel.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+			m_InputCommand.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 		}
 		m_UnsavedChanges = true;
 	}
@@ -233,7 +233,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		Ui()->DoLabel(&A, "Command:", 16.0f, TEXTALIGN_ML);
 		if(Ui()->DoClearableEditBox(&m_InputCommand, &B, 10.0f))
 		{
-			m_vCachedCommands[0].m_Command = m_InputCommand.GetString();
+			GameClient()->m_TouchControls.m_vCachedCommands[0].m_Command = m_InputCommand.GetString();
 			m_UnsavedChanges = true;
 		}
 	}
@@ -247,10 +247,10 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			if(m_EditCommandNumber > 0)
 			m_EditCommandNumber --;
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
+			if(GameClient()->m_TouchControls.m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "commands.size < number at do decrease button");
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+			m_InputCommand.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+			m_InputLabel.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 		}
 		B.VSplitLeft(B.w * 0.6f, &A, &B);
 		//m_EditCommandNumber counts from 0. But shown from 1.
@@ -260,31 +260,31 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		if(DoButton_Menu(&s_IncreaseButton, "+", 0, &A))
 		{
 			m_EditCommandNumber ++;
-			if((int)m_vCachedCommands.size() < m_EditCommandNumber + 1)
+			if((int)GameClient()->m_TouchControls.m_vCachedCommands.size() < m_EditCommandNumber + 1)
 			{
-				m_vCachedCommands.emplace_back("", CTouchControls::CButtonLabel::EType::PLAIN, "");
+				GameClient()->m_TouchControls.m_vCachedCommands.emplace_back("", CTouchControls::CButtonLabel::EType::PLAIN, "");
 				m_UnsavedChanges = true;
 			}
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
+			if(GameClient()->m_TouchControls.m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 			dbg_assert(false, "commands.size < number at do increase button");
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+			m_InputCommand.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+			m_InputLabel.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 		}
 		static CButtonContainer s_DeleteButton;
 		if(DoButton_Menu(&s_DeleteButton, FontIcons::FONT_ICON_TRASH, 0, &B))
 		{
-			const auto DeleteIt = m_vCachedCommands.begin() + m_EditCommandNumber;
-			m_vCachedCommands.erase(DeleteIt);
-			if(m_EditCommandNumber + 1 > (int)m_vCachedCommands.size())
+			const auto DeleteIt = GameClient()->m_TouchControls.m_vCachedCommands.begin() + m_EditCommandNumber;
+			GameClient()->m_TouchControls.m_vCachedCommands.erase(DeleteIt);
+			if(m_EditCommandNumber + 1 > (int)GameClient()->m_TouchControls.m_vCachedCommands.size())
 			{
 				m_EditCommandNumber --;
 				if(m_EditCommandNumber < 0)
 				dbg_assert(false, "Detected m_EditCommandNumber < 0.");
 			}
-			while(m_vCachedCommands.size() < 2)
-				m_vCachedCommands.emplace_back("", CTouchControls::CButtonLabel::EType::PLAIN, "");
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
+			while(GameClient()->m_TouchControls.m_vCachedCommands.size() < 2)
+				GameClient()->m_TouchControls.m_vCachedCommands.emplace_back("", CTouchControls::CButtonLabel::EType::PLAIN, "");
+			m_InputCommand.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
+			m_InputLabel.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 			m_UnsavedChanges = true;
 		}
 	}
@@ -311,7 +311,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		Ui()->DoLabel(&A, "Label:", 16.0f, TEXTALIGN_ML);
 		if(Ui()->DoClearableEditBox(&m_InputLabel, &B, 10.0f))
 		{
-			m_vCachedCommands[0].m_Label = m_InputLabel.GetString();
+			GameClient()->m_TouchControls.m_vCachedCommands[0].m_Label = m_InputLabel.GetString();
 			m_UnsavedChanges = true;
 		}
 	}
@@ -320,7 +320,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		Ui()->DoLabel(&A, "Command:", 16.0f, TEXTALIGN_ML);
 		if(Ui()->DoClearableEditBox(&m_InputCommand, &B, 10.0f))
 		{
-			m_vCachedCommands[m_EditCommandNumber].m_Command = m_InputCommand.GetString();
+			GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Command = m_InputCommand.GetString();
 			m_UnsavedChanges = true;
 		}
 	}
@@ -364,10 +364,10 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
 		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
 		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)m_vCachedCommands[0].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
-		if(NewButtonLabelType != m_vCachedCommands[0].m_LabelType)
+		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
+		if(NewButtonLabelType != GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType)
 		{
-			m_vCachedCommands[0].m_LabelType = NewButtonLabelType;
+			GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType = NewButtonLabelType;
 			m_UnsavedChanges = true;
 		}
 	}
@@ -376,7 +376,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		Ui()->DoLabel(&A, "Label:", 16.0f, TEXTALIGN_ML);
 		if(Ui()->DoClearableEditBox(&m_InputLabel, &B, 10.0f))
 		{
-			m_vCachedCommands[m_EditCommandNumber].m_Label = m_InputLabel.GetString();
+			GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Label = m_InputLabel.GetString();
 			m_UnsavedChanges = true;
 		}
 	}
@@ -391,10 +391,10 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
 		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
 		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)m_vCachedCommands[m_EditCommandNumber].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
-		if(NewButtonLabelType != m_vCachedCommands[m_EditCommandNumber].m_LabelType)
+		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
+		if(NewButtonLabelType != GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_LabelType)
 		{
-			m_vCachedCommands[m_EditCommandNumber].m_LabelType = NewButtonLabelType;
+			GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_LabelType = NewButtonLabelType;
 			m_UnsavedChanges = true;
 		}
 	}
@@ -459,11 +459,11 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		GameClient()->m_TouchControls.m_pSelectedButton->m_Shape = m_CachedShape;
 		if(m_EditBehaviorType == 0)
 		{
-			GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CBindTouchButtonBehavior>(m_vCachedCommands[0].m_Label.c_str(), m_vCachedCommands[0].m_LabelType, m_vCachedCommands[0].m_Command.c_str());
+			GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CBindTouchButtonBehavior>(GameClient()->m_TouchControls.m_vCachedCommands[0].m_Label.c_str(), GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType, GameClient()->m_TouchControls.m_vCachedCommands[0].m_Command.c_str());
 		}
 		else if(m_EditBehaviorType == 1)
 		{
-			std::vector<CBindToggleTouchButtonBehavior::CCommand> vMovingBehavior = m_vCachedCommands;
+			std::vector<CBindToggleTouchButtonBehavior::CCommand> vMovingBehavior = GameClient()->m_TouchControls.m_vCachedCommands;
 			GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CBindToggleTouchButtonBehavior>(std::move(vMovingBehavior));
 		}
 		else if(m_EditBehaviorType == 2)
