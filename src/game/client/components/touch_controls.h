@@ -645,7 +645,7 @@ public:
 	CTouchButton *m_pLastSelectedButton = nullptr;
 
 	void NewButton();
-	void DeleteButton()
+	void DeleteButton();
 
 	const CBehaviorFactoryEditor m_BehaviorFactoriesEditor[10] = {
 		{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&]() { return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber); }},
