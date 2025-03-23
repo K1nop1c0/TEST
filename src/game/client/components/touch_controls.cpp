@@ -2112,9 +2112,6 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		m_RemoveButton.Init(Ui(), -1);
 		m_ConfirmButton.Init(Ui(), -1);
 		m_CancelButton.Init(Ui(), -1);
-		std::for_each(m_vVisibilityButtons.begin(), m_vVisibilityButtons.end(), [&](auto &Button){
-			Button.Init(Ui(), -1);
-		});
 		IsInited = true;
 	}
 
@@ -2431,6 +2428,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 	VisRec.Margin(5.0f, &VisRec);
 	static CScrollRegion s_VisibilityScrollRegion;
 	vec2 ScrollOffset(0.0f, 0.0f);
+	VisRec.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
 	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset);
 	VisRec.y += ScrollOffset.y;
 	SMenuButtonProperties VisibilityProp;
@@ -2442,6 +2440,7 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
         []() -> const char* { return FontIcons::FONT_ICON_PLUS; },
         []() -> const char* { return "X"; }
 	};
+	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
 	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
 	"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
 	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
@@ -2450,19 +2449,16 @@ void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
 		{
 			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
-			EditBox.VSplitLeft(25.0f, &A, &EditBox);
-			if(Ui()->DoButton_Menu(m_vVisibilityButtons[Current], &s_VisibilityButtons[Current], VisibilityLabelFuc[m_aCachedVisibilities[Current]], &A, VisibilityProp))
+			if(Ui()->DoButtonLogic(&m_aVisibilityId[Current], 0, &EditBox, BUTTONFLAG_LEFT))
 			{
-				char aBif[32];
-				str_format(aBif, sizeof(aBif), "Current = %d, Before = %d", Current, m_aCachedVisibilities[Current]);
-				Console()->ExecuteLine(aBif);
 				m_aCachedVisibilities[Current] += 2;
 				m_aCachedVisibilities[Current] %= 3;
-				str_format(aBif, sizeof(aBif), "Current = %d, After = %d", Current, m_aCachedVisibilities[Current]);
-				Console()->ExecuteLine(aBif);
-				m_UnsavedChanges = true;
 			}
-			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 10.0f, TEXTALIGN_ML);
+			TextRender()->TextColor(LabelColor[m_aCachedVisibilities[Current] ? 1 : 0]);
+			char aBuf[20];
+			str_format(aBuf, sizeof(aBuf), "%s%s", m_aCachedVisibilities[Current] == 0 ? "-" : "", VisibilityStrings[Current]);
+			Ui()->DoLabel(&EditBox, aBuf, 16.0f, TEXTALIGN_MC);
+			TextRender()->TextColor(TextRender()->DefaultTextColor());
 		}
 	}
 	s_VisibilityScrollRegion.End();

@@ -725,7 +725,7 @@ private:
 	CUIElement m_RemoveButton;
 	CUIElement m_ConfirmButton;
 	CUIElement m_CancelButton;
-	std::array<CUIElement, (unsigned)EButtonVisibility::NUM_VISIBILITIES> m_vVisibilityButtons;
+	std::array<int, (unsigned)EButtonVisibility::NUM_VISIBILITIES> m_aVisibilityId = {};
 
 	//The biggest value's length is shorter than 6
 	CLineInputBuffered<7> m_InputX;
