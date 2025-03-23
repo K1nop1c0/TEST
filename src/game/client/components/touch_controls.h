@@ -13,7 +13,6 @@
 
 #include <chrono>
 #include <functional>
-#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -55,8 +54,6 @@ public:
 	bool SaveConfigurationToFile();
 	void SaveConfigurationToClipboard();
 	void ResetVirtualVisibilities();
-	void RenderTouchButtonEditor(CUIRect MainView);
-	void RenderVirtualVisibilityEditor(CUIRect MainView);
 
 	EDirectTouchIngameMode DirectTouchIngame() const { return m_DirectTouchIngame; }
 	void SetDirectTouchIngame(EDirectTouchIngameMode DirectTouchIngame)
@@ -75,94 +72,6 @@ public:
 	bool HasEditingChanges() const { return m_EditingChanges; }
 	void SetEditingChanges(bool EditingChanges) { m_EditingChanges = EditingChanges; }
 	bool IsButtonSelected() const { return m_pSelectedButton != nullptr; }
-
-private:
-	static constexpr const char *const DIRECT_TOUCH_INGAME_MODE_NAMES[(int)EDirectTouchIngameMode::NUM_STATES] = {"disabled", "action", "aim", "fire", "hook"};
-	static constexpr const char *const DIRECT_TOUCH_SPECTATE_MODE_NAMES[(int)EDirectTouchSpectateMode::NUM_STATES] = {"disabled", "aim"};
-
-	enum class EButtonShape
-	{
-		RECT,
-		CIRCLE,
-		NUM_SHAPES
-	};
-
-	static constexpr const char *const SHAPE_NAMES[(int)EButtonShape::NUM_SHAPES] = {"rect", "circle"};
-
-	//12 Visibilities
-	enum class EButtonVisibility
-	{
-		INGAME,
-		ZOOM_ALLOWED,
-		VOTE_ACTIVE,
-		DUMMY_ALLOWED,
-		DUMMY_CONNECTED,
-		RCON_AUTHED,
-		DEMO_PLAYER,
-		EXTRA_MENU_1,
-		EXTRA_MENU_2,
-		EXTRA_MENU_3,
-		EXTRA_MENU_4,
-		EXTRA_MENU_5,
-		NUM_VISIBILITIES
-	};
-
-	class CButtonVisibility
-	{
-	public:
-		EButtonVisibility m_Type;
-		bool m_Parity;
-
-		CButtonVisibility(EButtonVisibility Type, bool Parity) :
-			m_Type(Type), m_Parity(Parity) {}
-	};
-
-	class CButtonVisibilityData
-	{
-	public:
-		const char *m_pId;
-		std::function<bool()> m_Function;
-	};
-
-	CButtonVisibilityData m_aVisibilityFunctions[(int)EButtonVisibility::NUM_VISIBILITIES];
-
-	enum
-	{
-		ACTION_AIM,
-		ACTION_FIRE,
-		ACTION_HOOK,
-		NUM_ACTIONS
-	};
-
-	class CButtonLabel
-	{
-	public:
-		enum class EType
-		{
-			/**
-			 * Label is used as is.
-			 */
-			PLAIN,
-			/**
-			 * Label is localized. Only usable for default button labels for which there must be
-			 * corresponding `Localizable`-calls in code and string in the translation files.
-			 */
-			LOCALIZED,
-			/**
-			 * Icon font is used for the label.
-			 */
-			ICON,
-			/**
-			 * Number of label types.
-			 */
-			NUM_TYPES
-		};
-
-		EType m_Type;
-		const char *m_pLabel;
-	};
-
-	static constexpr const char *const LABEL_TYPE_NAMES[(int)CButtonLabel::EType::NUM_TYPES] = {"plain", "localized", "icon"};
 
 	class CUnitRect
 	{
@@ -193,6 +102,94 @@ private:
 			return (m_X < Other.m_X + Other.m_W) && (m_X + m_W > Other.m_X) && (m_Y < Other.m_Y + Other.m_H) && (m_Y + m_H > Other.m_Y);
 		}
 	};
+
+	//12 Visibilities
+	enum class EButtonVisibility
+	{
+		INGAME,
+		ZOOM_ALLOWED,
+		VOTE_ACTIVE,
+		DUMMY_ALLOWED,
+		DUMMY_CONNECTED,
+		RCON_AUTHED,
+		DEMO_PLAYER,
+		EXTRA_MENU_1,
+		EXTRA_MENU_2,
+		EXTRA_MENU_3,
+		EXTRA_MENU_4,
+		EXTRA_MENU_5,
+		NUM_VISIBILITIES
+	};
+
+	enum class EButtonShape
+	{
+		RECT,
+		CIRCLE,
+		NUM_SHAPES
+	};
+
+	class CButtonLabel
+	{
+	public:
+		enum class EType
+		{
+			/**
+			 * Label is used as is.
+			 */
+			PLAIN,
+			/**
+			 * Label is localized. Only usable for default button labels for which there must be
+			 * corresponding `Localizable`-calls in code and string in the translation files.
+			 */
+			LOCALIZED,
+			/**
+			 * Icon font is used for the label.
+			 */
+			ICON,
+			/**
+			 * Number of label types.
+			 */
+			NUM_TYPES
+		};
+
+		EType m_Type;
+		const char *m_pLabel;
+	};
+
+private:
+	static constexpr const char *const DIRECT_TOUCH_INGAME_MODE_NAMES[(int)EDirectTouchIngameMode::NUM_STATES] = {"disabled", "action", "aim", "fire", "hook"};
+	static constexpr const char *const DIRECT_TOUCH_SPECTATE_MODE_NAMES[(int)EDirectTouchSpectateMode::NUM_STATES] = {"disabled", "aim"};
+
+	static constexpr const char *const SHAPE_NAMES[(int)EButtonShape::NUM_SHAPES] = {"rect", "circle"};
+
+	class CButtonVisibility
+	{
+	public:
+		EButtonVisibility m_Type;
+		bool m_Parity;
+
+		CButtonVisibility(EButtonVisibility Type, bool Parity) :
+			m_Type(Type), m_Parity(Parity) {}
+	};
+
+	class CButtonVisibilityData
+	{
+	public:
+		const char *m_pId;
+		std::function<bool()> m_Function;
+	};
+
+	CButtonVisibilityData m_aVisibilityFunctions[(int)EButtonVisibility::NUM_VISIBILITIES];
+
+	enum
+	{
+		ACTION_AIM,
+		ACTION_FIRE,
+		ACTION_HOOK,
+		NUM_ACTIONS
+	};
+
+	static constexpr const char *const LABEL_TYPE_NAMES[(int)CButtonLabel::EType::NUM_TYPES] = {"plain", "localized", "icon"};
 
 	class CTouchButtonBehavior;
 
@@ -595,19 +592,6 @@ private:
 		const char *m_pId;
 		std::function<std::unique_ptr<CPredefinedTouchButtonBehavior>()> m_Factory;
 	};
-	
-	const CBehaviorFactoryEditor m_BehaviorFactoriesEditor[10] = {
-		{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&]() { return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber); }},
-		{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
-		{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
-		{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
-		{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
-		{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
-		{CTouchControls::CSwapActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
-		{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
-		{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
-		{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
-	
 
 	bool ParseConfiguration(const void *pFileData, unsigned FileLength);
 	std::optional<EDirectTouchIngameMode> ParseDirectTouchIngameMode(const json_value *pModeValue);
@@ -629,113 +613,50 @@ private:
 		std::vector<CUnitRect> m_Rects;
 		CQuadtreeNode(int X, int Y, int W, int H)
         : m_Space({X, Y, W, H}) {}
-		void Split()
-		{
-			m_NW = std::make_unique<CQuadtreeNode>(m_Space.m_X, m_Space.m_Y, m_Space.m_W / 2, m_Space.m_H / 2);
-			m_NE = std::make_unique<CQuadtreeNode>(m_Space.m_X + m_Space.m_W / 2, m_Space.m_Y, m_Space.m_W / 2, m_Space.m_H / 2);
-			m_SW = std::make_unique<CQuadtreeNode>(m_Space.m_X, m_Space.m_Y + m_Space.m_H / 2, m_Space.m_W / 2, m_Space.m_H / 2);
-			m_SE = std::make_unique<CQuadtreeNode>(m_Space.m_X + m_Space.m_W / 2, m_Space.m_Y + m_Space.m_H / 2, m_Space.m_W / 2, m_Space.m_H / 2);
-		}
+		void Split();
 	};
-
 	class CQuadtree
 	{
-		public:
-			CQuadtree(int Width, int Height) 
-				: m_Root(0, 0, Width, Height), m_MaxObj(3), m_MaxDep(3) {}
+	public:
+		CQuadtree(int Width, int Height) 
+			: m_Root(0, 0, Width, Height), m_MaxObj(3), m_MaxDep(3) {}
 		
-			void Insert(const CUnitRect &Rect)
-			{
-				Insert(m_Root, Rect, 0);
-			}
-			
-			//o(logn)
-			bool Find(const CUnitRect &MyRect)
-			{
-				return Find(MyRect, m_Root);
-			}
-		
-		private:
-			CQuadtreeNode m_Root;
-			const size_t m_MaxObj;
-			const size_t m_MaxDep;
-
-			void Insert(CQuadtreeNode &Node, const CUnitRect &Rect, size_t Depth)
-			{
-				if (Node.m_NW)
-				{
-					if (Node.m_NW->m_Space.IsOverlap(Rect)) Insert(*Node.m_NW, Rect, Depth + 1);
-					if (Node.m_NE->m_Space.IsOverlap(Rect)) Insert(*Node.m_NE, Rect, Depth + 1);
-					if (Node.m_SW->m_Space.IsOverlap(Rect)) Insert(*Node.m_SW, Rect, Depth + 1);
-					if (Node.m_SE->m_Space.IsOverlap(Rect)) Insert(*Node.m_SE, Rect, Depth + 1);
-					return;
-				}
-
-				Node.m_Rects.push_back(Rect);
-
-				if (Node.m_Rects.size() > m_MaxObj && Depth < m_MaxDep)
-				{
-					Node.Split();
-					for (const auto& TRect : Node.m_Rects)
-					{
-						Insert(Node, TRect, Depth);
-					}
-					Node.m_Rects.clear();
-				}
-			}
-			bool Find(const CUnitRect &MyRect, CQuadtreeNode &Node)
-			{
-				if(Node.m_NW)
-				{
-					if(MyRect.IsOverlap(Node.m_NE->m_Space) && Find(MyRect, *Node.m_NE)) return true;
-					if(MyRect.IsOverlap(Node.m_NW->m_Space) && Find(MyRect, *Node.m_NW)) return true;
-					if(MyRect.IsOverlap(Node.m_SE->m_Space) && Find(MyRect, *Node.m_SE)) return true;
-					if(MyRect.IsOverlap(Node.m_SW->m_Space) && Find(MyRect, *Node.m_SW)) return true;
-				}
-				return std::any_of(Node.m_Rects.begin(), Node.m_Rects.end(), [&MyRect](const auto &Rect){
-					return MyRect.IsOverlap(Rect);
-				});
-			}
+		void Insert(const CUnitRect &Rect) { Insert(m_Root, Rect, 0); }
+		bool Find(const CUnitRect &MyRect) { return Find(MyRect, m_Root); }
+	private:
+		CQuadtreeNode m_Root;
+		const size_t m_MaxObj;
+		const size_t m_MaxDep;
+		void Insert(CQuadtreeNode &Node, const CUnitRect &Rect, size_t Depth);
+		bool Find(const CUnitRect &MyRect, CQuadtreeNode &Node);
 	};
+	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect);
 
-
-	CUnitRect FindPositionXY(const std::set<CTouchControls::CUnitRect> &vVisibleButtonRects, CTouchControls::CUnitRect MyRect);
-	void OnOpenTouchButtonEditor(bool Force = false);
-
-	CTouchButton *m_pSelectedButton = nullptr;
 	std::unique_ptr<CTouchButton> m_pTmpButton = std::make_unique<CTouchButton>(this); // This is for render, when directly slide to move buttons on screen.
 	CTouchButtonBehavior *m_pCachedBehavior = nullptr; // For Render() to get the behavior data when the target button has nullptr behavior pointer.
 
-	std::vector<bool> m_vVirtualVisibilities;
-	EButtonShape m_CachedShape;
-	int m_EditBehaviorType = 0; //Default = bind
-	int m_PredefinedBehaviorType = 0; //Default = extra menu
-	std::vector<CBindToggleTouchButtonBehavior::CCommand> m_vCachedCommands;
-	int m_CachedNumber = 0;
-	int m_EditCommandNumber = 0;
-	bool m_UnsavedChanges = false;
-	std::optional<CUnitRect> m_ShownRect;
-	std::array<int, (size_t)EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
-
-	CUIElement m_DecreaseButton;
-	CUIElement m_IncreaseButton;
-	CUIElement m_DeleteButton;
-	CUIElement m_ExtraMenuDecreaseButton;
-	CUIElement m_ExtraMenuIncreaseButton;
-	CUIElement m_AddNewButton;
-	CUIElement m_RemoveButton;
-	CUIElement m_ConfirmButton;
-	CUIElement m_CancelButton;
-	std::array<int, (unsigned)EButtonVisibility::NUM_VISIBILITIES> m_aVisibilityId = {};
-
-	//The biggest value's length is shorter than 6
-	CLineInputBuffered<7> m_InputX;
-	CLineInputBuffered<7> m_InputY;
-	CLineInputBuffered<7> m_InputW;
-	CLineInputBuffered<7> m_InputH;
-	CLineInputBuffered<1024> m_InputCommand;
-	CLineInputBuffered<1024> m_InputLabel;
 	void RenderButtonsWhileInEditor();
+
+public:
+	CTouchButton *m_pSelectedButton = nullptr;
+	std::optional<CTouchControls::CUnitRect> m_ShownRect;
+	std::array<bool, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVirtualVisibilities;
+
+	void NewButton();
+	void DeleteButton()
+
+	const CBehaviorFactoryEditor m_BehaviorFactoriesEditor[10] = {
+		{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&]() { return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber); }},
+		{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
+		{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
+		{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
+		{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
+		{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
+		{CTouchControls::CSwapActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
+		{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
+		{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
+		{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
+
 };
 
 #endif

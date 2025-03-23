@@ -279,10 +279,10 @@ void CMenus::RenderGame(CUIRect MainView)
 				MainView.HSplitBottom(230.0f, &TouchButtonEditor, &TouchControlsEditor);
 				TouchButtonEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_T, 10.0f);
 				TouchButtonEditor.HSplitTop(10.0f, nullptr, &TouchButtonEditor);
-				GameClient()->m_TouchControls.RenderTouchButtonEditor(TouchButtonEditor);
+				RenderTouchButtonEditor(TouchButtonEditor);
 				TouchControlsEditor.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
 				VirtualVisibilityEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_BR, 10.0f);
-				GameClient()->m_TouchControls.RenderVirtualVisibilityEditor(VirtualVisibilityEditor);
+				RenderVirtualVisibilityEditor(VirtualVisibilityEditor);
 			}
 			else
 			{

@@ -3,6 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_MENUS_H
 #define GAME_CLIENT_COMPONENTS_MENUS_H
 
+#include "game/client/components/touch_controls.h"
 #include <base/types.h>
 #include <base/vmath.h>
 
@@ -860,5 +861,31 @@ private:
 	bool RenderHslaScrollbars(CUIRect *pRect, unsigned int *pColor, bool Alpha, float DarkestLight);
 
 	CServerProcess m_ServerProcess;
+
+	// found in menus_ingame_touch_controls.cpp
+	CTouchControls::EButtonShape m_CachedShape;
+	int m_EditBehaviorType = 0; //Default = bind
+	int m_PredefinedBehaviorType = 0; //Default = extra menu
+	std::vector<CTouchControls::CBindToggleTouchButtonBehavior::CCommand> m_vCachedCommands;
+	int m_CachedNumber = 0;
+	int m_EditCommandNumber = 0;
+	bool m_UnsavedChanges = false;
+	CTouchControls::CTouchButton *m_pLastSelectedButton = nullptr;
+	std::array<int, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
+	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aButtonVisibilityIds = {};
+	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVisibilityIds = {};
+
+	//The biggest value's length is shorter than 7
+	CLineInputBuffered<7> m_InputX;
+	CLineInputBuffered<7> m_InputY;
+	CLineInputBuffered<7> m_InputW;
+	CLineInputBuffered<7> m_InputH;
+	CLineInputBuffered<1024> m_InputCommand;
+	CLineInputBuffered<1024> m_InputLabel;
+
+	void OnOpenTouchButtonEditor(bool Force = false);
+	void InputPosFunction(CLineInput *Input, std::string *SavedString);
+	void RenderTouchButtonEditor(CUIRect MainView);
+	void RenderVirtualVisibilityEditor(CUIRect MainView);
 };
 #endif

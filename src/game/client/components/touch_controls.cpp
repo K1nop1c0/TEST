@@ -5,7 +5,6 @@
 #include "game/client/ui_rect.h"
 
 #include <algorithm>
-#include <array>
 #include <base/log.h>
 #include <base/system.h>
 
@@ -288,7 +287,6 @@ void CTouchControls::CTouchButton::Render() const
 		const char *pLabel = LabelData.m_Type == CButtonLabel::EType::LOCALIZED ? Localize(LabelData.m_pLabel) : LabelData.m_pLabel;
 		m_pTouchControls->Ui()->DoLabel(&LabelRect, pLabel, FontSize, TEXTALIGN_MC, LabelProps);
 	}
-	log_error("Render func", "x=%f,y=%f,w=%f,h=%f;", m_ScreenRect.x, m_ScreenRect.y, m_ScreenRect.w, m_ScreenRect.h);
 }
 
 void CTouchControls::CTouchButton::WriteToConfiguration(CJsonWriter *pWriter)
@@ -626,12 +624,6 @@ CTouchControls::CButtonLabel CTouchControls::CBindTouchButtonBehavior::GetLabel(
 
 void CTouchControls::CBindTouchButtonBehavior::OnActivate()
 {
-	char MegaBuf[4000] = "Virtual Visibility:";
-	for(const bool VirtualVisibility : m_pTouchControls->m_vVirtualVisibilities)
-		str_format(MegaBuf, sizeof(MegaBuf), "%s%s", MegaBuf, VirtualVisibility?"true,":"false,");
-	for(const auto &vis : m_pTouchControls->m_aVisibilityFunctions)
-		str_format(MegaBuf, sizeof(MegaBuf), "%s%s: %s", MegaBuf, vis.m_pId, vis.m_Function()?"true,":"false,");
-	log_error("VISIBILITY", MegaBuf);
 	m_pTouchControls->Console()->ExecuteLineStroked(1, m_Command.c_str());
 	m_Repeating = false;
 }
@@ -1665,168 +1657,13 @@ void CTouchControls::WriteConfiguration(CJsonWriter *pWriter)
 	pWriter->EndObject();
 }
 
-CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CTouchControls::CUnitRect> &vVisibleButtonRects, CTouchControls::CUnitRect MyRect)
-{
-	MyRect.m_X = clamp(MyRect.m_X, 0, 1000000 - MyRect.m_W);
-	MyRect.m_Y = clamp(MyRect.m_Y, 0, 1000000 - MyRect.m_H);
-	double TDis = 1000000.0f;
-	CTouchControls::CUnitRect TRec = {-1, -1, -1, -1};
-	std::set<int> CandidateX;
-	std::set<int> CandidateY;
-	//o(N)
-	bool IfOverlap = std::any_of(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&MyRect](const auto &Rect){
-		return MyRect.IsOverlap(Rect);
-	});
-	if(!IfOverlap)
-		return MyRect;
-	//o(NlogN)
-	for(const auto &Rect : vVisibleButtonRects)
-	{
-		int Pos = Rect.m_X + Rect.m_W;
-		if(Pos + MyRect.m_W <= 1000000)
-			CandidateX.insert(Pos);
-		Pos = Rect.m_X - MyRect.m_W;
-		if(Pos >= 0)
-			CandidateX.insert(Pos);
-		Pos = Rect.m_Y + Rect.m_H;
-		if(Pos + MyRect.m_H <= 1000000)
-			CandidateY.insert(Pos);
-		Pos = Rect.m_Y - MyRect.m_H;
-		if(Pos >= 0)
-			CandidateY.insert(Pos);
-	}
-	CandidateX.insert(MyRect.m_X);
-	CandidateY.insert(MyRect.m_Y);
-
-	CTouchControls::CQuadtree SearchTree(1000000, 1000000);
-	std::for_each(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&SearchTree](const auto &Rect){
-		SearchTree.Insert(Rect);
-	});
-	for(const int &X : CandidateX)
-	for(const int &Y : CandidateY)
-	{
-		CUnitRect TmpRect = {X, Y, MyRect.m_W, MyRect.m_H};
-		if(!SearchTree.Find(TmpRect))
-		{
-			double Dis = TmpRect / MyRect;
-			if(Dis < TDis)
-			{
-				TDis = Dis;
-				TRec = TmpRect;
-			}
-		}
-	}
-	return TRec;
-}
-
 //This is called when the checkbox "Edit touch controls" is selected, so virtual visibility could be set as the real visibility on entering.
 void CTouchControls::ResetVirtualVisibilities()
 {
 	//Update virtual visibilities.
-	if(m_vVirtualVisibilities.size() == 0)
-		m_vVirtualVisibilities.resize((int)EButtonVisibility::NUM_VISIBILITIES, false);
-
 	for(int Visibility = (int)EButtonVisibility::INGAME; Visibility < (int)EButtonVisibility::NUM_VISIBILITIES; ++Visibility)
-		m_vVirtualVisibilities[Visibility] = m_aVisibilityFunctions[Visibility].m_Function();
+		m_aVirtualVisibilities[Visibility] = m_aVisibilityFunctions[Visibility].m_Function();
 }
-
-//This is called when the Touch button editor is rendered, the below one. Used for updating the CLineInput.
-void CTouchControls::OnOpenTouchButtonEditor(bool Force)
-{
-	static CTouchButton *s_pLastSelectedButton = nullptr;
-
-	//If selected button changes, update the cached information in editor. You can also force changing.
-	if(s_pLastSelectedButton != nullptr && s_pLastSelectedButton == m_pSelectedButton && !Force)
-	{
-		s_pLastSelectedButton = m_pSelectedButton;
-		return;
-	}
-
-	if(m_pSelectedButton == nullptr)
-		dbg_assert(false, "WTF NULLPTR == S_PLASTSELECTEDBUTTON IN ONOPENTOUCHBUTTON EDITOR COME ON");
-
-	//Reset all cached values.
-	m_EditBehaviorType = 0;
-	m_PredefinedBehaviorType = 0;
-	m_CachedNumber = 0;
-	m_EditCommandNumber = 0;
-	m_InputCommand.Set("");
-	m_InputLabel.Set("");
-	m_vCachedCommands.clear();
-	m_vCachedCommands.reserve(5);
-	Console()->ExecuteLine("Filled");
-	m_aCachedVisibilities.fill(2); // 2 means don't have the visibility.
-
-	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
-	m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
-	m_InputY.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_Y).c_str());
-	m_InputW.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_W).c_str());
-	m_InputH.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_H).c_str());
-	m_CachedShape = m_pSelectedButton->m_Shape;
-	for(const auto &Visibility : m_pSelectedButton->m_vVisibilities)
-	{
-		if((int)Visibility.m_Type >= (int) EButtonVisibility::NUM_VISIBILITIES)
-			dbg_assert(false, "666No acting anymore");
-		m_aCachedVisibilities[(int)Visibility.m_Type] = Visibility.m_Parity ? 1 : 0;
-	}
-
-	//These are behavior values.
-	if(m_pSelectedButton->m_pBehavior != nullptr)
-	{
-		std::string BehaviorType = m_pSelectedButton->m_pBehavior->GetBehaviorType();
-		if(BehaviorType == "bind")
-		{
-			m_EditBehaviorType = 0;
-			CBindTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
-			if(CastedBehavior == nullptr)
-				dbg_assert(false, "? CastedNULLPTR in bind");
-			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
-			m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
-			m_InputCommand.Set(CastedBehavior->m_Command.c_str());
-			m_InputLabel.Set(CastedBehavior->m_Label.c_str());
-		}
-		else if(BehaviorType == "bind-toggle")
-		{
-			m_EditBehaviorType = 1;
-			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
-			if(CastedBehavior == nullptr)
-				dbg_assert(false, "? CastedNULLPTR in bindtoggle");
-			m_vCachedCommands = CastedBehavior->m_vCommands;
-			m_EditCommandNumber = 0;
-			if(!m_vCachedCommands.empty())
-			{
-				m_InputCommand.Set(m_vCachedCommands[0].m_Command.c_str());
-				m_InputLabel.Set(m_vCachedCommands[0].m_Label.c_str());
-			}
-		}
-		else if(BehaviorType == "predefined")
-		{	
-			m_EditBehaviorType = 2;
-			const char *PredefinedType = m_pSelectedButton->m_pBehavior->GetPredefinedType();
-			if(PredefinedType == nullptr)
-				m_PredefinedBehaviorType = 0;
-			else
-				for(m_PredefinedBehaviorType = 0; m_PredefinedBehaviorType < 10 && PredefinedType != m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
-
-			if(m_PredefinedBehaviorType == 10)
-				dbg_assert(false, "WTF is going on? PredefinedType = %s", PredefinedType);
-
-			if(m_PredefinedBehaviorType == 0)
-			{
-				CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(m_pSelectedButton->m_pBehavior.get());
-				if(CastedBehavior == nullptr)
-					dbg_assert(false, "? CastedNULLPTR in extramenu");
-				m_CachedNumber = CastedBehavior->m_Number;
-			}
-		}
-		else //Empty
-		 	dbg_assert(false, "Detected out of bound value in m_EditBehaviorType");
-	}
-	if(m_vCachedCommands.size() < 2)
-		m_vCachedCommands.resize(2);
-	s_pLastSelectedButton = m_pSelectedButton;
-}
-
 
 void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &vTouchFingerStates)
 {	
@@ -1841,7 +1678,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 	std::set<CUnitRect> vVisibleButtonRects;
 	const vec2 ScreenSize = CalculateScreenSize();
 
-	//Remove if the finger deleted has released. Though o(n*n), how many fingers do you expect to press down at the same time?
+	//Remove if the finger deleted has released.
 	if(s_DeletedFingerState.size() != 0)
 	{
 		const auto &Remove = std::remove_if(s_DeletedFingerState.begin(), s_DeletedFingerState.end(), [&vTouchFingerStates](auto &TargetState){
@@ -1940,7 +1777,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 	for(auto &TouchButton : m_vTouchButtons)
 	{
 		bool IsVisible = std::all_of(TouchButton.m_vVisibilities.begin(), TouchButton.m_vVisibilities.end(), [&](const auto &Visibility){
-			return Visibility.m_Parity == m_vVirtualVisibilities[(int)Visibility.m_Type];
+			return Visibility.m_Parity == m_aVirtualVisibilities[(int)Visibility.m_Type];
 		});
 		if(IsVisible)
 		{
@@ -2069,19 +1906,17 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 
 void CTouchControls::RenderButtonsWhileInEditor()
 {
-	int RenderCount = 0;
 	for(auto &TouchButton : m_vTouchButtons)
 	{
 		if(&TouchButton == m_pSelectedButton)
 			continue;
 		bool IsVisible = std::all_of(TouchButton.m_vVisibilities.begin(), TouchButton.m_vVisibilities.end(), [&](const auto &Visibility){
-			return Visibility.m_Parity == m_vVirtualVisibilities[(int)Visibility.m_Type];
+			return Visibility.m_Parity == m_aVirtualVisibilities[(int)Visibility.m_Type];
 		});
 		if(IsVisible)
 		{
 			TouchButton.UpdateScreenFromUnitRect();
 			TouchButton.Render();
-			RenderCount ++;
 		}
 	}
 	if(m_pSelectedButton != nullptr)
@@ -2091,501 +1926,128 @@ void CTouchControls::RenderButtonsWhileInEditor()
 		if(m_pTmpButton == nullptr)
 			dbg_assert(false, "Nullptr pTmpButton detected");
 		m_pTmpButton->Render();
-		RenderCount ++;
-	}
-	log_error("RENDER", "RenderButtonWhileInEditor rendered %d buttons.", RenderCount);
-}
-
-void CTouchControls::RenderTouchButtonEditor(CUIRect MainView)
-{
-	//Update LineInputs and others if Selected button changes.
-	OnOpenTouchButtonEditor();
-	//Delete if user inputs value that is not digits.
-	static std::string s_SavedX = "0", s_SavedY = "0", s_SavedW = "50000", s_SavedH = "50000";
-	static bool IsInited = false;
-	if(IsInited == false)
-	{
-		m_IncreaseButton.Init(Ui(), -1);
-		m_DecreaseButton.Init(Ui(), -1);
-		m_DeleteButton.Init(Ui(), -1);
-		m_ExtraMenuIncreaseButton.Init(Ui(), -1);
-		m_ExtraMenuDecreaseButton.Init(Ui(), -1);
-		m_AddNewButton.Init(Ui(), -1);
-		m_RemoveButton.Init(Ui(), -1);
-		m_ConfirmButton.Init(Ui(), -1);
-		m_CancelButton.Init(Ui(), -1);
-		IsInited = true;
-	}
-
-    CUIRect Left, Right, A, B, EditBox, VisRec;
-    MainView.VSplitLeft(MainView.w / 4.0f, &Left, &Right);
-    Left.Margin(5.0f, &Left);
-    Left.HSplitTop(25.0f, &EditBox, &Left);
-	Left.HSplitTop(5.0f, nullptr, &Left);
-	EditBox.VSplitLeft(25.0f, &A, &EditBox);
-	Ui()->DoLabel(&A, "X:", 16.0f, TEXTALIGN_ML);
-    if(Ui()->DoClearableEditBox(&m_InputX, &EditBox, 12.0f))
-    {
-        std::string InputValue = m_InputX.GetString();
-		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
-			return std::isdigit(static_cast<unsigned char>(Value));
-		});
-		if(!IsDigit)
-			m_InputX.Set(s_SavedX.c_str());
-		s_SavedX = m_InputX.GetString();
-		m_UnsavedChanges = true;
-	}
-
-	//Auto check if the input value contains char that is not digit. If so delete it.
-	Left.HSplitTop(25.0f, &EditBox, &Left);
-	Left.HSplitTop(5.0f, nullptr, &Left);
-	EditBox.VSplitLeft(25.0f, &A, &EditBox);
-	Ui()->DoLabel(&A, "Y:", 16.0f, TEXTALIGN_ML);
-	if(Ui()->DoClearableEditBox(&m_InputY, &EditBox, 12.0f))
-    {
-        std::string InputValue = m_InputY.GetString();
-		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
-			return std::isdigit(static_cast<unsigned char>(Value));
-		});
-		if(!IsDigit)
-			m_InputY.Set(s_SavedY.c_str());
-		s_SavedY = m_InputY.GetString();
-		m_UnsavedChanges = true;
-    }
-
-    Left.HSplitTop(25.0f, &EditBox, &Left);
-	Left.HSplitTop(5.0f, nullptr, &Left);
-	EditBox.VSplitLeft(25.0f, &A, &EditBox);
-	Ui()->DoLabel(&A, "W:", 16.0f, TEXTALIGN_ML);
-    if(Ui()->DoClearableEditBox(&m_InputW, &EditBox, 12.0f))
-    {
-        std::string InputValue = m_InputW.GetString();
-		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
-			return std::isdigit(static_cast<unsigned char>(Value));
-		});
-		if(!IsDigit)
-			m_InputW.Set(s_SavedW.c_str());
-		s_SavedW = m_InputW.GetString();
-		m_UnsavedChanges = true;
-    }
-
-    Left.HSplitTop(25.0f, &EditBox, &Left);
-	Left.HSplitTop(5.0f, nullptr, &Left);
-	EditBox.VSplitLeft(25.0f, &A, &EditBox);
-	Ui()->DoLabel(&A, "H:", 16.0f, TEXTALIGN_ML);
-    if(Ui()->DoClearableEditBox(&m_InputH, &EditBox, 12.0f))
-    {
-        std::string InputValue = m_InputH.GetString();
-		bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
-			return std::isdigit(static_cast<unsigned char>(Value));
-		});
-		if(!IsDigit)
-			m_InputH.Set(s_SavedH.c_str());
-		s_SavedH = m_InputH.GetString();
-		m_UnsavedChanges = true;
-    }
-	
-	//Drop down menu for shapes
-	Left.HSplitTop(25.0f, &EditBox, &Left);
-	Left.HSplitTop(5.0f, nullptr, &Left);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin(5.0f, &A);
-	B.VMargin(5.0f, &B);
-	Ui()->DoLabel(&A, "Shape:", 16.0f, TEXTALIGN_ML);
-	static CUi::SDropDownState s_ButtonShapeDropDownState;
-	static CScrollRegion s_ButtonShapeDropDownScrollRegion;
-	s_ButtonShapeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonShapeDropDownScrollRegion;
-	const char* Shapes[] = {"Rect", "Circle"};
-	const EButtonShape NewButtonShape = (EButtonShape)Ui()->DoDropDown(&B, (int)m_CachedShape, Shapes, std::size(Shapes), s_ButtonShapeDropDownState);
-	if(NewButtonShape != m_CachedShape)
-	{
-		m_CachedShape = NewButtonShape;
-		m_UnsavedChanges = true;
-	}
-
-	// Behaviors
-	const char* Behaviors[] = {"Bind", "Bind Toggle", "Predefined"};
-	// The predefined factory has been changed. It now has the same behavior order as this array.
-	const char* Predefineds[] = {"Extra Menu", "Joystick Hook", "Joystick Fire", "Joystick Aim", "Joystick Action", 
-								 "Use Action", "Swap Action", "Spectate", "Emoticon", "Ingame Menu"};
-	const char* LabelTypes[] = {"Plain", "Localized", "Icon"};
-
-	//Right for behaviors, left(center) for visibility. They share 0.75 width of mainview, each 0.375.
-	Right.VSplitMid(&VisRec, &Right);
-	Right.Margin(5.0f, &Right);
-	Right.HSplitTop(25.0f, &EditBox, &Right);
-	Right.HSplitTop(5.0f, nullptr, &Right);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin(5.0f, &A);
-	B.VMargin(5.0f, &B);
-	Ui()->DoLabel(&A, "Behavior Type:", 16.0f, TEXTALIGN_ML);
-	static CUi::SDropDownState s_ButtonBehaviorDropDownState;
-	static CScrollRegion s_ButtonBehaviorDropDownScrollRegion;
-	s_ButtonBehaviorDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonBehaviorDropDownScrollRegion;
-	const int NewButtonBehavior = Ui()->DoDropDown(&B, m_EditBehaviorType, Behaviors, std::size(Behaviors), s_ButtonBehaviorDropDownState);
-	if(NewButtonBehavior != m_EditBehaviorType)
-	{
-		m_EditBehaviorType = NewButtonBehavior;
-		if(m_EditBehaviorType == 0)
-		{
-			m_InputLabel.Set(m_vCachedCommands[0].m_Label.c_str());
-			m_InputCommand.Set(m_vCachedCommands[0].m_Command.c_str());
-		}
-		if(m_EditBehaviorType == 1)
-		{
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
-			dbg_assert(false, "m_vCachedCommands.size < number, in Dropdown behavior choosing space");
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
-		}
-		m_UnsavedChanges = true;
-	}
-
-	Right.HSplitTop(25.0f, &EditBox, &Right);
-	Right.HSplitTop(5.0f, nullptr, &Right);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin(5.0f, &A);
-	B.VMargin(5.0f, &B);
-	if(m_EditBehaviorType == 0)
-	{
-		Ui()->DoLabel(&A, "Command:", 16.0f, TEXTALIGN_ML);
-		if(Ui()->DoClearableEditBox(&m_InputCommand, &B, 10.0f))
-		{
-			m_vCachedCommands[0].m_Command = m_InputCommand.GetString();
-			m_UnsavedChanges = true;
-		}
-	}
-	else if(m_EditBehaviorType == 1)
-	{
-		Ui()->DoLabel(&A, "Number:", 16.0f, TEXTALIGN_ML);
-		// Decrease Button, increase button and delete button share 1/2 width of B, the rest is for number. 1/6, 1/2, 1/6, 1/6.
-		B.VSplitLeft(B.w / 6, &A, &B);
-		SMenuButtonProperties Props;
-		Props.m_UseIconFont = true;
-		const auto &&DecreaseLabelFunc = []() { return FontIcons::FONT_ICON_MINUS; };
-		static CButtonContainer s_DecreaseButton;
-		if(Ui()->DoButton_Menu(m_DecreaseButton, &s_DecreaseButton, DecreaseLabelFunc, &A, Props))
-		{
-			if(m_EditCommandNumber > 0)
-			m_EditCommandNumber --;
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
-			dbg_assert(false, "commands.size < number at do decrease button");
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
-		}
-		B.VSplitLeft(B.w * 0.6f, &A, &B);
-		//m_EditCommandNumber counts from 0. But shown from 1.
-		Ui()->DoLabel(&A, std::to_string(m_EditCommandNumber + 1).c_str(), 16.0f, TEXTALIGN_MC);
-		B.VSplitLeft(B.w / 2.0f, &A, &B);
-		const auto &&IncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
-		static CButtonContainer s_IncreaseButton;
-		if(Ui()->DoButton_Menu(m_IncreaseButton, &s_IncreaseButton, IncreaseLabelFunc, &A, Props))
-		{
-			m_EditCommandNumber ++;
-			if((int)m_vCachedCommands.size() < m_EditCommandNumber + 1)
-			{
-				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
-				m_UnsavedChanges = true;
-			}
-			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
-			dbg_assert(false, "commands.size < number at do increase button");
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
-		}
-		const auto &&DeleteLabelFunc = []() { return FontIcons::FONT_ICON_TRASH; };
-		static CButtonContainer s_DeleteButton;
-		if(Ui()->DoButton_Menu(m_DeleteButton, &s_DeleteButton, DeleteLabelFunc, &B, Props))
-		{
-			const auto DeleteIt = m_vCachedCommands.begin() + m_EditCommandNumber;
-			m_vCachedCommands.erase(DeleteIt);
-			if(m_EditCommandNumber + 1 > (int)m_vCachedCommands.size())
-			{
-				m_EditCommandNumber --;
-				if(m_EditCommandNumber < 0)
-				dbg_assert(false, "Detected m_EditCommandNumber < 0.");
-			}
-			while(m_vCachedCommands.size() < 2)
-				m_vCachedCommands.emplace_back("", CButtonLabel::EType::PLAIN, "");
-			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
-			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
-			m_UnsavedChanges = true;
-		}
-	}
-	else if(m_EditBehaviorType == 2)
-	{
-		Ui()->DoLabel(&A, "Type:", 16.0f, TEXTALIGN_ML);
-		static CUi::SDropDownState s_ButtonPredefinedDropDownState;
-		static CScrollRegion s_ButtonPredefinedDropDownScrollRegion;
-		s_ButtonPredefinedDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonPredefinedDropDownScrollRegion;
-		const int NewPredefined = Ui()->DoDropDown(&B, m_PredefinedBehaviorType, Predefineds, std::size(Predefineds), s_ButtonPredefinedDropDownState);
-		if(NewPredefined != m_PredefinedBehaviorType)
-		{
-			m_PredefinedBehaviorType = NewPredefined;
-			m_UnsavedChanges = true;
-		}
-	}
-	Right.HSplitTop(25.0f, &EditBox, &Right);
-	Right.HSplitTop(5.0f, nullptr, &Right);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin(5.0f, &A);
-	B.VMargin(5.0f, &B);
-	if(m_EditBehaviorType == 0)
-	{
-		Ui()->DoLabel(&A, "Label:", 16.0f, TEXTALIGN_ML);
-		if(Ui()->DoClearableEditBox(&m_InputLabel, &B, 10.0f))
-		{
-			m_vCachedCommands[0].m_Label = m_InputLabel.GetString();
-			m_UnsavedChanges = true;
-		}
-	}
-	else if(m_EditBehaviorType == 1)
-	{
-		Ui()->DoLabel(&A, "Command:", 16.0f, TEXTALIGN_ML);
-		if(Ui()->DoClearableEditBox(&m_InputCommand, &B, 10.0f))
-		{
-			m_vCachedCommands[m_EditCommandNumber].m_Command = m_InputCommand.GetString();
-			m_UnsavedChanges = true;
-		}
-	}
-	else if(m_EditBehaviorType == 2 && m_PredefinedBehaviorType == 0) // Extra menu type, needs to input number.
-	{
-		//Increase & Decrease button share 1/2 width, the rest is for label.
-		EditBox.VSplitLeft(EditBox.w / 4, &A, &B);
-		SMenuButtonProperties Props;
-		Props.m_UseIconFont = true;
-		const auto &&ExtraMenuDecreaseLabelFunc = []() { return FontIcons::FONT_ICON_MINUS; };
-		static CButtonContainer s_ExtraMenuDecreaseButton;
-		if(Ui()->DoButton_Menu(m_ExtraMenuDecreaseButton, &s_ExtraMenuDecreaseButton, ExtraMenuDecreaseLabelFunc, &A, Props))
-		{
-			if(m_CachedNumber > 0)
-			{
-				// Menu Number also counts from 1, but written as 0.
-				m_CachedNumber --;
-				m_UnsavedChanges = true;
-			}
-		}
-
-		B.VSplitLeft(B.w * 2 / 3.0f, &A, &B);
-		Ui()->DoLabel(&A, std::to_string(m_CachedNumber + 1).c_str(), 16.0f, TEXTALIGN_MC);
-
-		const auto &&ExtraMenuIncreaseLabelFunc = []() { return FontIcons::FONT_ICON_PLUS; };
-		static CButtonContainer s_ExtraMenuIncreaseButton;
-		if(Ui()->DoButton_Menu(m_ExtraMenuIncreaseButton, &s_ExtraMenuIncreaseButton, ExtraMenuIncreaseLabelFunc, &B, Props))
-		{
-			if(m_CachedNumber < 4)
-			{
-				m_CachedNumber ++;
-				m_UnsavedChanges = true;
-			}
-		}
-	}
-	Right.HSplitTop(25.0f, &EditBox, &Right);
-	Right.HSplitTop(5.0f, nullptr, &Right);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin(5.0f, &A);
-	B.VMargin(5.0f, &B);
-	if(m_EditBehaviorType == 0)
-	{
-		Ui()->DoLabel(&A, "Label type:", 16.0f, TEXTALIGN_ML);
-		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
-		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
-		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)m_vCachedCommands[0].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
-		if(NewButtonLabelType != m_vCachedCommands[0].m_LabelType)
-		{
-			m_vCachedCommands[0].m_LabelType = NewButtonLabelType;
-			m_UnsavedChanges = true;
-		}
-	}
-	else if(m_EditBehaviorType == 1)
-	{
-		Ui()->DoLabel(&A, "Label:", 16.0f, TEXTALIGN_ML);
-		if(Ui()->DoClearableEditBox(&m_InputLabel, &B, 10.0f))
-		{
-			m_vCachedCommands[m_EditCommandNumber].m_Label = m_InputLabel.GetString();
-			m_UnsavedChanges = true;
-		}
-	}
-	Right.HSplitTop(25.0f, &EditBox, &Right);
-	Right.HSplitTop(5.0f, nullptr, &Right);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin(5.0f, &A);
-	B.VMargin(5.0f, &B);
-	if(m_EditBehaviorType == 1)
-	{
-		Ui()->DoLabel(&A, "Label type:", 16.0f, TEXTALIGN_ML);
-		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
-		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
-		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)m_vCachedCommands[m_EditCommandNumber].m_LabelType, LabelTypes, std::size(LabelTypes), s_ButtonLabelTypeDropDownState);
-		if(NewButtonLabelType != m_vCachedCommands[m_EditCommandNumber].m_LabelType)
-		{
-			m_vCachedCommands[m_EditCommandNumber].m_LabelType = NewButtonLabelType;
-			m_UnsavedChanges = true;
-		}
-	}
-
-	//Visibilities time. This is button's visibility, not virtual.
-	VisRec.h = 150.0f;
-	VisRec.Margin(5.0f, &VisRec);
-	static CScrollRegion s_VisibilityScrollRegion;
-	vec2 ScrollOffset(0.0f, 0.0f);
-	VisRec.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
-	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset);
-	VisRec.y += ScrollOffset.y;
-	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
-	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
-	"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
-	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
-	{
-		VisRec.HSplitTop(30.0f, &EditBox, &VisRec);
-		if(s_VisibilityScrollRegion.AddRect(EditBox))
-		{
-			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
-			if(Ui()->DoButtonLogic(&m_aVisibilityId[Current], 0, &EditBox, BUTTONFLAG_LEFT))
-			{
-				m_aCachedVisibilities[Current] += 2;
-				m_aCachedVisibilities[Current] %= 3;
-			}
-			TextRender()->TextColor(LabelColor[m_aCachedVisibilities[Current] == 2 ? 0 : 1]);
-			char aBuf[20];
-			str_format(aBuf, sizeof(aBuf), "%s%s", m_aCachedVisibilities[Current] == 0 ? "-" : "+", VisibilityStrings[Current]);
-			Ui()->DoLabel(&EditBox, aBuf, 16.0f, TEXTALIGN_MC);
-			TextRender()->TextColor(TextRender()->DefaultTextColor());
-		}
-	}
-	s_VisibilityScrollRegion.End();
-
-
-	//Combine left and right together.
-	Left.w = MainView.w;
-	Left.w -= 10.0f;
-	Left.HSplitTop(25.0f, &EditBox, &Left);
-	Left.HSplitTop(5.0f, nullptr, &Left);
-	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
-	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
-	A.VMargin((A.w - 100.0f) / 2.0f, &A);
-	const auto &&ConfirmButtonLabelFunc = []() { return "Save"; };
-	static CButtonContainer s_ConfirmButton;
-	if(Ui()->DoButton_Menu(m_ConfirmButton, &s_ConfirmButton, ConfirmButtonLabelFunc, &A))
-	{
-		//Save the cached config to the selected button.
-		if(m_pSelectedButton == nullptr)
-			dbg_assert(false, "nullptr detected in SelectedButton in Save button");
-		m_pSelectedButton->m_UnitRect.m_X = std::stoi(m_InputX.GetString());
-		m_pSelectedButton->m_UnitRect.m_Y = std::stoi(m_InputY.GetString());
-		m_pSelectedButton->m_UnitRect.m_W = std::stoi(m_InputW.GetString());
-		m_pSelectedButton->m_UnitRect.m_H = std::stoi(m_InputH.GetString());
-		m_pSelectedButton->m_vVisibilities.clear();
-		for(unsigned Iterator = (unsigned)EButtonVisibility::INGAME; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
-		{
-			if(m_aCachedVisibilities[Iterator] != 2)
-				m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
-		}
-		m_pSelectedButton->UpdateScreenFromUnitRect();
-		m_pSelectedButton->m_Shape = m_CachedShape;
-		if(m_EditBehaviorType == 0)
-		{
-			m_pSelectedButton->m_pBehavior = std::make_unique<CBindTouchButtonBehavior>(m_vCachedCommands[0].m_Label.c_str(), m_vCachedCommands[0].m_LabelType, m_vCachedCommands[0].m_Command.c_str());
-		}
-		else if(m_EditBehaviorType == 1)
-		{
-			std::vector<CBindToggleTouchButtonBehavior::CCommand> vMovingBehavior = m_vCachedCommands;
-			m_pSelectedButton->m_pBehavior = std::make_unique<CBindToggleTouchButtonBehavior>(std::move(vMovingBehavior));
-		}
-		else if(m_EditBehaviorType == 2)
-		{
-			if(m_PredefinedBehaviorType != 0)
-				m_pSelectedButton->m_pBehavior = m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_Factory();
-			else
-				m_pSelectedButton->m_pBehavior = std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber);
-		}
-		m_pSelectedButton->UpdatePointers();
-		m_UnsavedChanges = false;
-		m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
-	}
-
-	EditBox.VSplitLeft(EditBox.w * 2.0f / 3.0f, &A, &B);
-	if(m_UnsavedChanges)
-	{
-		TextRender()->TextColor(ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f));
-		Ui()->DoLabel(&A, Localize("Unsaved changes"), 10.0f, TEXTALIGN_MC);
-		TextRender()->TextColor(TextRender()->DefaultTextColor());
-	}
-	B.VMargin((B.w - 100.0f) / 2.0f, &B);
-	const auto &&CancelButtonLabelFunc = []() { return "Cancel"; };
-	static CButtonContainer s_CancelButton;
-	if(Ui()->DoButton_Menu(m_CancelButton, &s_CancelButton, CancelButtonLabelFunc, &B))
-	{
-		//Since the settings are cancelled, reset the cached settings to m_pSelectedButton though selected button didn't change.
-		OnOpenTouchButtonEditor(true);
-		m_UnsavedChanges = false;
-	}
-
-	Left.HSplitTop(25.0f, &EditBox, &Left);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin((A.w - 150.0f) / 2.0f, &A);
-	B.VMargin((B.w - 150.0f) / 2.0f, &B);
-	const auto &&AddNewButtonLabelFunc = []() { return "New Button"; };
-	static CButtonContainer s_AddNewButton;
-	if(Ui()->DoButton_Menu(m_AddNewButton, &s_AddNewButton, AddNewButtonLabelFunc, &A))
-	{
-		CTouchButton NewButton(this);
-		NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
-		m_vTouchButtons.push_back(std::move(NewButton));
-		m_pSelectedButton = &(m_vTouchButtons.back());
-		m_pSelectedButton->UpdatePointers();
-		// Keep the new button's visibility equal to the last selected one.
-		for(unsigned Iterator = (unsigned)EButtonVisibility::INGAME; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
-		{
-			if(m_aCachedVisibilities[Iterator] != 2)
-				m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
-		}
-		m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
-		m_ShownRect = std::nullopt;
-	}
-	const auto &&RemoveButtonLabelFunc = []() { return "Delete Button"; };
-	static CButtonContainer s_RemoveButton;
-	if(Ui()->DoButton_Menu(m_RemoveButton, &s_RemoveButton, RemoveButtonLabelFunc, &B))
-	{
-		auto DeleteIt = m_vTouchButtons.begin() + (m_pSelectedButton - &m_vTouchButtons[0]);
-		m_vTouchButtons.erase(DeleteIt);
-		m_pSelectedButton = nullptr;
-		m_pCachedBehavior = nullptr;
 	}
 }
 
-void CTouchControls::RenderVirtualVisibilityEditor(CUIRect MainView)
+void CTouchControls::CQuadtreeNode::Split()
 {
-	CUIRect EditBox;
-	static std::array<int, (unsigned)EButtonVisibility::NUM_VISIBILITIES> s_aVisibilityIds = {};
-	const std::array<const ColorRGBA, 2> LabelColor = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
-	CUIRect Label;
-	MainView.Margin(10.0f, &MainView);
-	MainView.HSplitTop(25.0f, &Label, &MainView);
-	MainView.HMargin(5.0f, &MainView);
-	Ui()->DoLabel(&Label, Localize("Edit Visibilities"), 20.0f, TEXTALIGN_MC);
-	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
-		"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
-	static CScrollRegion s_VirtualVisibilityScrollRegion;
-	vec2 ScrollOffset(0.0f, 0.0f);
-	MainView.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
-	s_VirtualVisibilityScrollRegion.Begin(&MainView, &ScrollOffset);
-	MainView.y += ScrollOffset.y;
-	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
+	m_NW = std::make_unique<CQuadtreeNode>(m_Space.m_X, m_Space.m_Y, m_Space.m_W / 2, m_Space.m_H / 2);
+	m_NE = std::make_unique<CQuadtreeNode>(m_Space.m_X + m_Space.m_W / 2, m_Space.m_Y, m_Space.m_W / 2, m_Space.m_H / 2);
+	m_SW = std::make_unique<CQuadtreeNode>(m_Space.m_X, m_Space.m_Y + m_Space.m_H / 2, m_Space.m_W / 2, m_Space.m_H / 2);
+	m_SE = std::make_unique<CQuadtreeNode>(m_Space.m_X + m_Space.m_W / 2, m_Space.m_Y + m_Space.m_H / 2, m_Space.m_W / 2, m_Space.m_H / 2);
+}
+
+void CTouchControls::CQuadtree::Insert(CQuadtreeNode &Node, const CUnitRect &Rect, size_t Depth)
+{
+	if (Node.m_NW)
 	{
-		MainView.HSplitTop(30.0f, &EditBox, &MainView);
-		if(s_VirtualVisibilityScrollRegion.AddRect(EditBox))
+		if (Node.m_NW->m_Space.IsOverlap(Rect)) Insert(*Node.m_NW, Rect, Depth + 1);
+		if (Node.m_NE->m_Space.IsOverlap(Rect)) Insert(*Node.m_NE, Rect, Depth + 1);
+		if (Node.m_SW->m_Space.IsOverlap(Rect)) Insert(*Node.m_SW, Rect, Depth + 1);
+		if (Node.m_SE->m_Space.IsOverlap(Rect)) Insert(*Node.m_SE, Rect, Depth + 1);
+		return;
+	}
+	Node.m_Rects.push_back(Rect);
+	if (Node.m_Rects.size() > m_MaxObj && Depth < m_MaxDep)
+	{
+		Node.Split();
+		for (const auto& TRect : Node.m_Rects)
 		{
-			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
-			if(Ui()->DoButtonLogic(&s_aVisibilityIds[Current], 0, &EditBox, BUTTONFLAG_LEFT))
+			Insert(Node, TRect, Depth);
+		}
+		Node.m_Rects.clear();
+	}
+}
+
+bool CTouchControls::CQuadtree::Find(const CUnitRect &MyRect, CQuadtreeNode &Node)
+{
+	if(Node.m_NW)
+	{
+	    if(MyRect.IsOverlap(Node.m_NE->m_Space) && Find(MyRect, *Node.m_NE)) return true;
+		if(MyRect.IsOverlap(Node.m_NW->m_Space) && Find(MyRect, *Node.m_NW)) return true;
+		if(MyRect.IsOverlap(Node.m_SE->m_Space) && Find(MyRect, *Node.m_SE)) return true;
+		if(MyRect.IsOverlap(Node.m_SW->m_Space) && Find(MyRect, *Node.m_SW)) return true;
+	}
+	return std::any_of(Node.m_Rects.begin(), Node.m_Rects.end(), [&MyRect](const auto &Rect){
+		return MyRect.IsOverlap(Rect);
+    });
+}
+
+CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect)
+{
+	MyRect.m_X = clamp(MyRect.m_X, 0, 1000000 - MyRect.m_W);
+	MyRect.m_Y = clamp(MyRect.m_Y, 0, 1000000 - MyRect.m_H);
+	double TDis = 1000000.0f;
+	CUnitRect TRec = {-1, -1, -1, -1};
+	std::set<int> CandidateX;
+	std::set<int> CandidateY;
+	//o(N)
+	bool IfOverlap = std::any_of(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&MyRect](const auto &Rect){
+		return MyRect.IsOverlap(Rect);
+	});
+	if(!IfOverlap)
+		return MyRect;
+	//o(NlogN)
+	for(const auto &Rect : vVisibleButtonRects)
+	{
+		int Pos = Rect.m_X + Rect.m_W;
+		if(Pos + MyRect.m_W <= 1000000)
+			CandidateX.insert(Pos);
+		Pos = Rect.m_X - MyRect.m_W;
+		if(Pos >= 0)
+			CandidateX.insert(Pos);
+		Pos = Rect.m_Y + Rect.m_H;
+		if(Pos + MyRect.m_H <= 1000000)
+			CandidateY.insert(Pos);
+		Pos = Rect.m_Y - MyRect.m_H;
+		if(Pos >= 0)
+			CandidateY.insert(Pos);
+	}
+	CandidateX.insert(MyRect.m_X);
+	CandidateY.insert(MyRect.m_Y);
+
+	CQuadtree SearchTree(1000000, 1000000);
+	std::for_each(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&SearchTree](const auto &Rect){
+		SearchTree.Insert(Rect);
+	});
+	for(const int &X : CandidateX)
+	for(const int &Y : CandidateY)
+	{
+		CUnitRect TmpRect = {X, Y, MyRect.m_W, MyRect.m_H};
+		if(!SearchTree.Find(TmpRect))
+		{
+			double Dis = TmpRect / MyRect;
+			if(Dis < TDis)
 			{
-				m_vVirtualVisibilities[Current] = !m_vVirtualVisibilities[Current];
+				TDis = Dis;
+				TRec = TmpRect;
 			}
-			TextRender()->TextColor(LabelColor[m_vVirtualVisibilities[Current] ? 1 : 0]);
-			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 16.0f, TEXTALIGN_MC);
-			TextRender()->TextColor(TextRender()->DefaultTextColor());
 		}
 	}
-	s_VirtualVisibilityScrollRegion.End();
+	return TRec;
+}
+
+void CTouchControls::NewButton()
+{
+	CTouchButton NewButton(this);
+	NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
+	m_vTouchButtons.push_back(std::move(NewButton));
+	m_pSelectedButton = &(m_vTouchButtons.back());
+	m_pSelectedButton->UpdatePointers();
+	// Keep the new button's visibility equal to the last selected one.
+	for(unsigned Iterator = (unsigned)EButtonVisibility::INGAME; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
+	{
+		if(m_aCachedVisibilities[Iterator] != 2)
+			m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
+	}
+	m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
+	m_ShownRect = std::nullopt;
+}
+
+void CTouchControls::DeleteButton()
+{
+	auto DeleteIt = m_vTouchButtons.begin() + (m_pSelectedButton - &m_vTouchButtons[0]);
+	m_vTouchButtons.erase(DeleteIt);
+	m_pSelectedButton = nullptr;
+	m_pCachedBehavior = nullptr;
 }
