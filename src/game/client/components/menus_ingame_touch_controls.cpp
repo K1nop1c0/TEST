@@ -31,7 +31,7 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 	//Reset all cached values.
 	m_EditBehaviorType = 0;
 	m_PredefinedBehaviorType = 0;
-	m_CachedNumber = 0;
+	GameClient()->m_TouchControls.m_CachedNumber = 0;
 	m_EditCommandNumber = 0;
 	m_InputCommand.Set("");
 	m_InputLabel.Set("");
@@ -98,7 +98,7 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 				CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
 				if(CastedBehavior == nullptr)
 					dbg_assert(false, "? CastedNULLPTR in extramenu");
-				m_CachedNumber = CastedBehavior->m_Number;
+				GameClient()->m_TouchControls.m_CachedNumber = CastedBehavior->m_Number;
 			}
 		}
 		else //Empty
@@ -333,22 +333,22 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		static CButtonContainer s_ExtraMenuDecreaseButton;
 		if(DoButton_Menu(&s_ExtraMenuDecreaseButton, "-", 0, &A))
 		{
-			if(m_CachedNumber > 0)
+			if(GameClient()->m_TouchControls.m_CachedNumber > 0)
 			{
 				// Menu Number also counts from 1, but written as 0.
-				m_CachedNumber --;
+				GameClient()->m_TouchControls.m_CachedNumber --;
 				m_UnsavedChanges = true;
 			}
 		}
 
 		B.VSplitLeft(B.w * 2 / 3.0f, &A, &B);
-		Ui()->DoLabel(&A, std::to_string(m_CachedNumber + 1).c_str(), 16.0f, TEXTALIGN_MC);
+		Ui()->DoLabel(&A, std::to_string(GameClient()->m_TouchControls.m_CachedNumber + 1).c_str(), 16.0f, TEXTALIGN_MC);
 		static CButtonContainer s_ExtraMenuIncreaseButton;
 		if(DoButton_Menu(&s_ExtraMenuIncreaseButton, "+", 0, &B))
 		{
-			if(m_CachedNumber < 4)
+			if(GameClient()->m_TouchControls.m_CachedNumber < 4)
 			{
-				m_CachedNumber ++;
+				GameClient()->m_TouchControls.m_CachedNumber ++;
 				m_UnsavedChanges = true;
 			}
 		}
@@ -471,7 +471,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 			if(m_PredefinedBehaviorType != 0)
 				GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = GameClient()->m_TouchControls.m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_Factory();
 			else
-				GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CTouchControls::CExtraMenuTouchButtonBehavior>(m_CachedNumber);
+				GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CTouchControls::CExtraMenuTouchButtonBehavior>(GameClient()->m_TouchControls.m_CachedNumber);
 		}
 		GameClient()->m_TouchControls.m_pSelectedButton->UpdatePointers();
 		m_UnsavedChanges = false;

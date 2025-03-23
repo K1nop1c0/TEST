@@ -866,7 +866,6 @@ private:
 	CTouchControls::EButtonShape m_CachedShape;
 	int m_EditBehaviorType = 0; //Default = bind
 	int m_PredefinedBehaviorType = 0; //Default = extra menu
-	int m_CachedNumber = 0;
 	int m_EditCommandNumber = 0;
 	bool m_UnsavedChanges = false;
 	std::array<int, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
