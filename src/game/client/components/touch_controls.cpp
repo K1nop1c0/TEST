@@ -24,7 +24,6 @@
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
-#include <iterator>
 
 using namespace std::chrono_literals;
 
@@ -262,7 +261,7 @@ void CTouchControls::CTouchButton::Render() const
 		break;
 	}
 	default:
-		dbg_assert(false, "Unhandled shape");
+		dbg_assert(false, "Unhandled shape, Selected=%d, CheckActive=%d", Selected?1:0, CheckActive?1:0);
 		break;
 	}
 
@@ -618,6 +617,12 @@ int CTouchControls::CJoystickHookTouchButtonBehavior::SelectedAction() const
 CTouchControls::CButtonLabel CTouchControls::CBindTouchButtonBehavior::GetLabel() const
 {
 	return {m_LabelType, m_Label.c_str()};
+}
+
+void CTouchControls::CBindTouchButtonBehavior::SetLabel(CButtonLabel Label)
+{
+	m_Label = Label.m_pLabel;
+	m_LabelType = Label.m_Type;
 }
 
 void CTouchControls::CBindTouchButtonBehavior::OnActivate()
@@ -1470,7 +1475,7 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 		std::function<std::unique_ptr<CPredefinedTouchButtonBehavior>(const json_value *pBehaviorObject)> m_Factory;
 	};
 
-	const CBehaviorFactory BEHAVIOR_FACTORIES[] = {
+	const CBehaviorFactory BehaviorFactories[] = {
 		{CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&](const json_value *pBehavior) { return ParseExtraMenuBehavior(pBehavior); }},
 		{CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
 		{CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
@@ -1482,7 +1487,7 @@ std::unique_ptr<CTouchControls::CPredefinedTouchButtonBehavior> CTouchControls::
 		{CEmoticonTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
 		{CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, [](const json_value *pBehavior) { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
 
-	for(const CBehaviorFactory &BehaviorFactory : BEHAVIOR_FACTORIES)
+	for(const CBehaviorFactory &BehaviorFactory : BehaviorFactories)
 	{
 		if(str_comp(PredefinedId.u.string.ptr, BehaviorFactory.m_pId) == 0)
 		{
@@ -1885,11 +1890,10 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			m_pSelectedButton->m_UnitRect = (*m_ShownRect);
 			m_pSelectedButton->UpdateScreenFromUnitRect();
 		}
-		
-		m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
-		m_InputY.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_Y).c_str());
-		m_InputW.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_W).c_str());
-		m_InputH.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_H).c_str());
+		GameClient()->m_Menus.m_InputX.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_X).c_str());
+		GameClient()->m_Menus.m_InputY.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_Y).c_str());
+		GameClient()->m_Menus.m_InputW.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_W).c_str());
+		GameClient()->m_Menus.m_InputH.Set(std::to_string(m_pSelectedButton->m_UnitRect.m_H).c_str());
 		m_pTmpButton->m_UnitRect = (*m_ShownRect);
 	    m_pTmpButton->m_Shape = m_pSelectedButton->m_Shape;
 	    m_pTmpButton->m_vVisibilities = m_pSelectedButton->m_vVisibilities;
@@ -2035,8 +2039,8 @@ void CTouchControls::NewButton()
 	// Keep the new button's visibility equal to the last selected one.
 	for(unsigned Iterator = (unsigned)EButtonVisibility::INGAME; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
 	{
-		if(m_aCachedVisibilities[Iterator] != 2)
-			m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
+		if(GameClient()->m_Menus.m_aCachedVisibilities[Iterator] != 2)
+			m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(GameClient()->m_Menus.m_aCachedVisibilities[Iterator]));
 	}
 	m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
 	m_ShownRect = std::nullopt;
@@ -2044,7 +2048,7 @@ void CTouchControls::NewButton()
 
 void CTouchControls::DeleteButton()
 {
-	auto DeleteIt = m_vTouchButtons.begin() + (m_pSelectedButton - &m_vTouchButtons[0]);
+	auto DeleteIt = m_vTouchButtons.begin() + (m_pSelectedButton - m_vTouchButtons.data());
 	m_vTouchButtons.erase(DeleteIt);
 	m_pSelectedButton = nullptr;
 	m_pCachedBehavior = nullptr;

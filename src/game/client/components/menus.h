@@ -3,7 +3,7 @@
 #ifndef GAME_CLIENT_COMPONENTS_MENUS_H
 #define GAME_CLIENT_COMPONENTS_MENUS_H
 
-#include "game/client/components/touch_controls.h"
+#include <game/client/components/touch_controls.h>
 #include <base/types.h>
 #include <base/vmath.h>
 
@@ -868,20 +868,22 @@ private:
 	int m_PredefinedBehaviorType = 0; //Default = extra menu
 	int m_EditCommandNumber = 0;
 	bool m_UnsavedChanges = false;
-	std::array<int, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
 	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aButtonVisibilityIds = {};
 	std::array<int, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVisibilityIds = {};
 
 	//The biggest value's length is shorter than 7
+public:
 	CLineInputBuffered<7> m_InputX;
 	CLineInputBuffered<7> m_InputY;
 	CLineInputBuffered<7> m_InputW;
 	CLineInputBuffered<7> m_InputH;
 	CLineInputBuffered<1024> m_InputCommand;
 	CLineInputBuffered<1024> m_InputLabel;
+	std::array<int, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aCachedVisibilities;
+private:
 
 	void OnOpenTouchButtonEditor(bool Force = false);
-	void InputPosFunction(CLineInput *Input, std::string *SavedString);
+	void InputPosFunction(CLineInputBuffered<7> *Input, std::string *SavedString); // Used for input button's X,Y,W,H.
 	void RenderTouchButtonEditor(CUIRect MainView);
 	void RenderVirtualVisibilityEditor(CUIRect MainView);
 };

@@ -191,7 +191,9 @@ private:
 
 	static constexpr const char *const LABEL_TYPE_NAMES[(int)CButtonLabel::EType::NUM_TYPES] = {"plain", "localized", "icon"};
 
+public:
 	class CTouchButtonBehavior;
+private:
 
 	class CTouchButton
 	{
@@ -229,6 +231,7 @@ private:
 		void WriteToConfiguration(CJsonWriter *pWriter);
 	};
 
+public:
 	class CTouchButtonBehavior
 	{
 	public:
@@ -305,6 +308,8 @@ private:
 		CExtraMenuTouchButtonBehavior(int Number);
 
 		CButtonLabel GetLabel() const override;
+		int GetNumber() const { return m_Number; }
+		void SetNumber(int &&Number)	{ m_Number = Number; }
 		void OnDeactivate() override;
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
 
@@ -446,6 +451,9 @@ private:
 			m_Command(pCommand) {}
 
 		CButtonLabel GetLabel() const override;
+		void SetLabel(CButtonLabel Label);
+		std::string GetCommand() const { return m_Command; }
+		void SetCommand(std::string &&Command);
 		void OnActivate() override;
 		void OnDeactivate() override;
 		void OnUpdate() override;
@@ -490,6 +498,9 @@ private:
 			m_vCommands(std::move(vCommands)) {}
 
 		CButtonLabel GetLabel() const override;
+		void SetLabel(CButtonLabel Label);
+		std::vector<CCommand> GetCommand() const { return m_vCommands; }
+		void SetCommand(std::vector<CCommand> &&Commands) { m_vCommands = Commands; }
 		void OnActivate() override;
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
 		const char* GetBehaviorType() const override { return BEHAVIOR_TYPE; }
@@ -498,6 +509,8 @@ private:
 		std::vector<CCommand> m_vCommands;
 		size_t m_ActiveCommandIndex = 0;
 	};
+
+private:
 
 	/**
 	 * Mode of direct touch input while ingame.
@@ -633,8 +646,6 @@ private:
 	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect);
 
 	std::unique_ptr<CTouchButton> m_pTmpButton = std::make_unique<CTouchButton>(this); // This is for render, when directly slide to move buttons on screen.
-	CTouchButtonBehavior *m_pCachedBehavior = nullptr; // For Render() to get the behavior data when the target button has nullptr behavior pointer.
-
 	void RenderButtonsWhileInEditor();
 
 public:
@@ -644,6 +655,8 @@ public:
 	std::vector<CBindToggleTouchButtonBehavior::CCommand> m_vCachedCommands;
 	CTouchButton *m_pLastSelectedButton = nullptr;
 	int m_CachedNumber = 0;
+	CTouchButtonBehavior *m_pCachedBehavior = nullptr; // For Render() to get the behavior data when the target button has nullptr behavior pointer.
+
 
 	void NewButton();
 	void DeleteButton();

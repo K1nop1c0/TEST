@@ -5,14 +5,15 @@
 #include <game/client/ui.h>
 #include <game/client/ui_listbox.h>
 #include <game/client/ui_scrollregion.h>
+#include <game/localization.h>
 
 #include "menus.h"
 
 #include <algorithm>
 
-static constexpr const char *BEHAVIORS[] = {"Bind", "Bind Toggle", "Predefined"};
-static constexpr const char *PREDEFINEDS[] = {"Extra Menu", "Joystick Hook", "Joystick Fire", "Joystick Aim", "Joystick Action", "Use Action", "Swap Action", "Spectate", "Emoticon", "Ingame Menu"};
-static constexpr const char *LABELTYPES[] = {"Plain", "Localized", "Icon"};
+static const char *BEHAVIORS[] = {"Bind", "Bind Toggle", "Predefined"};
+static const char *PREDEFINEDS[] = {"Extra Menu", "Joystick Hook", "Joystick Fire", "Joystick Aim", "Joystick Action", "Use Action", "Swap Action", "Spectate", "Emoticon", "Ingame Menu"};
+static const char *LABELTYPES[] = {"Plain", "Localized", "Icon"};
 static const ColorRGBA LABELCOLORS[2] = { ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f) };
 
 //This is called when the Touch button editor is rendered, the below one. Used for updating the CLineInput.
@@ -47,7 +48,7 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 	m_CachedShape = GameClient()->m_TouchControls.m_pSelectedButton->m_Shape;
 	for(const auto &Visibility : GameClient()->m_TouchControls.m_pSelectedButton->m_vVisibilities)
 	{
-		if((int)Visibility.m_Type >= (int) EButtonVisibility::NUM_VISIBILITIES)
+		if((int)Visibility.m_Type >= (int)CTouchControls::EButtonVisibility::NUM_VISIBILITIES)
 			dbg_assert(false, "666No acting anymore");
 		m_aCachedVisibilities[(int)Visibility.m_Type] = Visibility.m_Parity ? 1 : 0;
 	}
@@ -59,21 +60,21 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 		if(BehaviorType == "bind")
 		{
 			m_EditBehaviorType = 0;
-			CBindTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
+			auto *CastedBehavior = static_cast<CTouchControls::CBindTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
 			if(CastedBehavior == nullptr)
 				dbg_assert(false, "? CastedNULLPTR in bind");
 			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
-			GameClient()->m_TouchControls.m_vCachedCommands.emplace_back(CastedBehavior->m_Label.c_str(), CastedBehavior->m_LabelType, CastedBehavior->m_Command.c_str());
-			m_InputCommand.Set(CastedBehavior->m_Command.c_str());
-			m_InputLabel.Set(CastedBehavior->m_Label.c_str());
+			GameClient()->m_TouchControls.m_vCachedCommands.emplace_back(CastedBehavior->GetLabel().m_pLabel, CastedBehavior->GetLabel().m_Type, CastedBehavior->GetCommand().c_str());
+			m_InputCommand.Set(CastedBehavior->GetCommand().c_str());
+			m_InputLabel.Set(CastedBehavior->GetLabel().m_pLabel);
 		}
 		else if(BehaviorType == "bind-toggle")
 		{
 			m_EditBehaviorType = 1;
-			CBindToggleTouchButtonBehavior *CastedBehavior = dynamic_cast<CBindToggleTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
+			auto *CastedBehavior = static_cast<CTouchControls::CBindToggleTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
 			if(CastedBehavior == nullptr)
 				dbg_assert(false, "? CastedNULLPTR in bindtoggle");
-			GameClient()->m_TouchControls.m_vCachedCommands = CastedBehavior->m_vCommands;
+			GameClient()->m_TouchControls.m_vCachedCommands = CastedBehavior->GetCommand();
 			m_EditCommandNumber = 0;
 			if(!GameClient()->m_TouchControls.m_vCachedCommands.empty())
 			{
@@ -88,17 +89,17 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 			if(PredefinedType == nullptr)
 				m_PredefinedBehaviorType = 0;
 			else
-				for(m_PredefinedBehaviorType = 0; m_PredefinedBehaviorType < 10 && PredefinedType != m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
+				for(m_PredefinedBehaviorType = 0; m_PredefinedBehaviorType < 10 && PredefinedType != GameClient()->m_TouchControls.m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType ++);
 
 			if(m_PredefinedBehaviorType == 10)
 				dbg_assert(false, "WTF is going on? PredefinedType = %s", PredefinedType);
 
 			if(m_PredefinedBehaviorType == 0)
 			{
-				CExtraMenuTouchButtonBehavior *CastedBehavior = dynamic_cast<CExtraMenuTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
+				auto *CastedBehavior = static_cast<CTouchControls::CExtraMenuTouchButtonBehavior*>(GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior.get());
 				if(CastedBehavior == nullptr)
 					dbg_assert(false, "? CastedNULLPTR in extramenu");
-				GameClient()->m_TouchControls.m_CachedNumber = CastedBehavior->m_Number;
+				GameClient()->m_TouchControls.m_CachedNumber = CastedBehavior->GetNumber();
 			}
 		}
 		else //Empty
@@ -109,7 +110,7 @@ void CMenus::OnOpenTouchButtonEditor(bool Force)
 	GameClient()->m_TouchControls.m_pLastSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
 }
 
-void CMenus::InputPosFunction(CLineInput *Input, std::string *SavedString)
+void CMenus::InputPosFunction(CLineInputBuffered<7> *Input, std::string *SavedString)
 {
     std::string InputValue = (*Input).GetString();
 	bool IsDigit = std::all_of(InputValue.begin(), InputValue.end(), [](char Value){
@@ -132,7 +133,6 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	OnOpenTouchButtonEditor();
 	//Delete if user inputs value that is not digits.
 	static std::string s_SavedX = "0", s_SavedY = "0", s_SavedW = "50000", s_SavedH = "50000";
-	static bool IsInited = false;
 
     CUIRect Left, Right, A, B, EditBox, VisRec;
     MainView.VSplitLeft(MainView.w / 4.0f, &Left, &Right);
@@ -143,7 +143,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	Ui()->DoLabel(&A, "X:", 16.0f, TEXTALIGN_ML);
     if(Ui()->DoClearableEditBox(&m_InputX, &EditBox, 12.0f))
     {
-        InputPosFunction(m_InputX, s_SavedX);
+        InputPosFunction(&m_InputX, &s_SavedX);
 	}
 
 	//Auto check if the input value contains char that is not digit. If so delete it.
@@ -153,7 +153,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	Ui()->DoLabel(&A, "Y:", 16.0f, TEXTALIGN_ML);
 	if(Ui()->DoClearableEditBox(&m_InputY, &EditBox, 12.0f))
     {
-        InputPosFunction(m_InputY, s_SavedY);
+        InputPosFunction(&m_InputY, &s_SavedY);
     }
 
     Left.HSplitTop(25.0f, &EditBox, &Left);
@@ -162,7 +162,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	Ui()->DoLabel(&A, "W:", 16.0f, TEXTALIGN_ML);
     if(Ui()->DoClearableEditBox(&m_InputW, &EditBox, 12.0f))
     {
-        InputPosFunction(m_InputW, s_SavedW);
+        InputPosFunction(&m_InputW, &s_SavedW);
     }
 
     Left.HSplitTop(25.0f, &EditBox, &Left);
@@ -171,7 +171,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	Ui()->DoLabel(&A, "H:", 16.0f, TEXTALIGN_ML);
     if(Ui()->DoClearableEditBox(&m_InputH, &EditBox, 12.0f))
     {
-        InputPosFunction(m_InputH, s_SavedH);
+        InputPosFunction(&m_InputH, &s_SavedH);
     }
 	
 	//Drop down menu for shapes
@@ -246,9 +246,13 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		if(DoButton_Menu(&s_DecreaseButton, "-", 0, &A))
 		{
 			if(m_EditCommandNumber > 0)
-			m_EditCommandNumber --;
+			{
+				m_EditCommandNumber --;
+			}
 			if(GameClient()->m_TouchControls.m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
-			dbg_assert(false, "commands.size < number at do decrease button");
+			{
+				dbg_assert(false, "commands.size < number at do decrease button");
+			}
 			m_InputCommand.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 		}
@@ -364,7 +368,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
 		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
 		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
+		const CTouchControls::CButtonLabel::EType NewButtonLabelType = (CTouchControls::CButtonLabel::EType)Ui()->DoDropDown(&B, (int)GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
 		if(NewButtonLabelType != GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType)
 		{
 			GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType = NewButtonLabelType;
@@ -391,7 +395,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		static CUi::SDropDownState s_ButtonLabelTypeDropDownState;
 		static CScrollRegion s_ButtonLabelTypeDropDownScrollRegion;
 		s_ButtonLabelTypeDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_ButtonLabelTypeDropDownScrollRegion;
-		const CButtonLabel::EType NewButtonLabelType = (CButtonLabel::EType)Ui()->DoDropDown(&B, (int)GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
+		const CTouchControls::CButtonLabel::EType NewButtonLabelType = (CTouchControls::CButtonLabel::EType)Ui()->DoDropDown(&B, (int)GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_LabelType, LABELTYPES, std::size(LABELTYPES), s_ButtonLabelTypeDropDownState);
 		if(NewButtonLabelType != GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_LabelType)
 		{
 			GameClient()->m_TouchControls.m_vCachedCommands[m_EditCommandNumber].m_LabelType = NewButtonLabelType;
@@ -407,9 +411,9 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	VisRec.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
 	s_VisibilityScrollRegion.Begin(&VisRec, &ScrollOffset);
 	VisRec.y += ScrollOffset.y;
-	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
+	const std::array<const char*, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
 	"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
-	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
+	for(unsigned Current = 0; Current < (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES; ++ Current)
 	{
 		VisRec.HSplitTop(30.0f, &EditBox, &VisRec);
 		if(s_VisibilityScrollRegion.AddRect(EditBox))
@@ -450,21 +454,21 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		GameClient()->m_TouchControls.m_pSelectedButton->m_UnitRect.m_W = std::stoi(m_InputW.GetString());
 		GameClient()->m_TouchControls.m_pSelectedButton->m_UnitRect.m_H = std::stoi(m_InputH.GetString());
 		GameClient()->m_TouchControls.m_pSelectedButton->m_vVisibilities.clear();
-		for(unsigned Iterator = (unsigned)EButtonVisibility::INGAME; Iterator < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
+		for(unsigned Iterator = (unsigned)CTouchControls::EButtonVisibility::INGAME; Iterator < (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES; ++ Iterator)
 		{
 			if(m_aCachedVisibilities[Iterator] != 2)
-				GameClient()->m_TouchControls.m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
+				GameClient()->m_TouchControls.m_pSelectedButton->m_vVisibilities.emplace_back((CTouchControls::EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
 		}
 		GameClient()->m_TouchControls.m_pSelectedButton->UpdateScreenFromUnitRect();
 		GameClient()->m_TouchControls.m_pSelectedButton->m_Shape = m_CachedShape;
 		if(m_EditBehaviorType == 0)
 		{
-			GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CBindTouchButtonBehavior>(GameClient()->m_TouchControls.m_vCachedCommands[0].m_Label.c_str(), GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType, GameClient()->m_TouchControls.m_vCachedCommands[0].m_Command.c_str());
+			GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CTouchControls::CBindTouchButtonBehavior>(GameClient()->m_TouchControls.m_vCachedCommands[0].m_Label.c_str(), GameClient()->m_TouchControls.m_vCachedCommands[0].m_LabelType, GameClient()->m_TouchControls.m_vCachedCommands[0].m_Command.c_str());
 		}
 		else if(m_EditBehaviorType == 1)
 		{
-			std::vector<CBindToggleTouchButtonBehavior::CCommand> vMovingBehavior = GameClient()->m_TouchControls.m_vCachedCommands;
-			GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CBindToggleTouchButtonBehavior>(std::move(vMovingBehavior));
+			std::vector<CTouchControls::CBindToggleTouchButtonBehavior::CCommand> vMovingBehavior = GameClient()->m_TouchControls.m_vCachedCommands;
+			GameClient()->m_TouchControls.m_pSelectedButton->m_pBehavior = std::make_unique<CTouchControls::CBindToggleTouchButtonBehavior>(std::move(vMovingBehavior));
 		}
 		else if(m_EditBehaviorType == 2)
 		{
@@ -519,14 +523,14 @@ void CMenus::RenderVirtualVisibilityEditor(CUIRect MainView)
 	MainView.HSplitTop(25.0f, &Label, &MainView);
 	MainView.HMargin(5.0f, &MainView);
 	Ui()->DoLabel(&Label, Localize("Edit Visibilities"), 20.0f, TEXTALIGN_MC);
-	const std::array<const char*, (size_t)EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
+	const std::array<const char*, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> VisibilityStrings = {"Ingame", "Zoom Allowed", "Vote Active", "Dummy Allowed", "Dummy Connected", "Rcon Authed",
 		"Demo Player", "Extra Menu 1", "Extra Menu 2", "Extra Menu 3", "Extra Menu 4", "Extra Menu 5"};
 	static CScrollRegion s_VirtualVisibilityScrollRegion;
 	vec2 ScrollOffset(0.0f, 0.0f);
 	MainView.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.25f), IGraphics::CORNER_ALL, 5.0f);
 	s_VirtualVisibilityScrollRegion.Begin(&MainView, &ScrollOffset);
 	MainView.y += ScrollOffset.y;
-	for(unsigned Current = 0; Current < (unsigned)EButtonVisibility::NUM_VISIBILITIES; ++ Current)
+	for(unsigned Current = 0; Current < (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES; ++ Current)
 	{
 		MainView.HSplitTop(30.0f, &EditBox, &MainView);
 		if(s_VirtualVisibilityScrollRegion.AddRect(EditBox))
@@ -534,9 +538,9 @@ void CMenus::RenderVirtualVisibilityEditor(CUIRect MainView)
 			EditBox.HSplitTop(5.0f, nullptr, &EditBox);
 			if(Ui()->DoButtonLogic(&m_aVisibilityIds[Current], 0, &EditBox, BUTTONFLAG_LEFT))
 			{
-				m_aVirtualVisibilities[Current] = !m_aVirtualVisibilities[Current];
+				GameClient()->m_TouchControls.m_aVirtualVisibilities[Current] = !GameClient()->m_TouchControls.m_aVirtualVisibilities[Current];
 			}
-			TextRender()->TextColor(LabelColor[m_aVirtualVisibilities[Current] ? 1 : 0]);
+			TextRender()->TextColor(LabelColor[GameClient()->m_TouchControls.m_aVirtualVisibilities[Current] ? 1 : 0]);
 			Ui()->DoLabel(&EditBox, VisibilityStrings[Current], 16.0f, TEXTALIGN_MC);
 			TextRender()->TextColor(TextRender()->DefaultTextColor());
 		}
