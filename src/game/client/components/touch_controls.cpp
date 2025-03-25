@@ -594,7 +594,7 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnUpdate()
 	}
 }
 
-// Joystick that uses the active action. Registers itself as the primary joystick.
+// Joystick that uses the active action.
 void CTouchControls::CJoystickActionTouchButtonBehavior::Init(CTouchButton *pTouchButton)
 {
 	CPredefinedTouchButtonBehavior::Init(pTouchButton);
@@ -1144,6 +1144,8 @@ void CTouchControls::RenderButtons()
 			continue;
 		}
 		TouchButton.UpdateBackgroundCorners();
+		// Man you takes me half an hour to debug HELL YEAH!!!
+		TouchButton.UpdateScreenFromUnitRect();
 		TouchButton.Render();
 	}
 }
