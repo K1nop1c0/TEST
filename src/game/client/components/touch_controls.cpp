@@ -198,7 +198,7 @@ vec2 CTouchControls::CTouchButton::ClampTouchPosition(vec2 TouchPosition) const
 		break;
 	}
 	default:
-		dbg_assert(false, "Unhandled shape");
+		dbg_assert(false, "Unhandled shape, Selected=%d, EditOn=%d", m_pTouchControls->IsButtonSelected()?1:0, m_pTouchControls->IsEditingActive()?1:0);
 		break;
 	}
 	return TouchPosition;
@@ -246,7 +246,7 @@ void CTouchControls::CTouchButton::Render() const
 	{
 	case EButtonShape::RECT:
 	{
-		m_ScreenRect.Draw(ButtonColor, Selected ? IGraphics::CORNER_NONE : m_BackgroundCorners, 10.0f);
+		m_ScreenRect.Draw(ButtonColor, m_pTouchControls->m_EditingActive ? IGraphics::CORNER_NONE : m_BackgroundCorners, 10.0f);
 		break;
 	}
 	case EButtonShape::CIRCLE:
@@ -571,6 +571,7 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnUpdate()
 		Controls.m_aMousePos[g_Config.m_ClDummy].x = clamp(Controls.m_aMousePos[g_Config.m_ClDummy].x, -201.0f * 32, (m_pTouchControls->Collision()->GetWidth() + 201.0f) * 32.0f);
 		Controls.m_aMousePos[g_Config.m_ClDummy].y = clamp(Controls.m_aMousePos[g_Config.m_ClDummy].y, -201.0f * 32, (m_pTouchControls->Collision()->GetHeight() + 201.0f) * 32.0f);
 		m_AccumulatedDelta = vec2(0.0f, 0.0f);
+		m_pTouchControls->Console()->ExecuteLine("echo 1");
 	}
 	else
 	{
@@ -581,6 +582,7 @@ void CTouchControls::CJoystickTouchButtonBehavior::OnUpdate()
 			Controls.m_aMousePos[g_Config.m_ClDummy].x = 0.001f;
 			Controls.m_aMousePos[g_Config.m_ClDummy].y = 0.0f;
 		}
+		m_pTouchControls->Console()->ExecuteLine("echo 2");
 	}
 }
 
@@ -629,6 +631,9 @@ void CTouchControls::CBindTouchButtonBehavior::OnActivate()
 {
 	m_pTouchControls->Console()->ExecuteLineStroked(1, m_Command.c_str());
 	m_Repeating = false;
+	char Buf[128];
+	str_format(Buf, sizeof(Buf), "echo Edit=%d,EditFunc=%d", m_pTouchControls->m_EditingActive?1:0, m_pTouchControls->IsEditingActive()?1:0);
+	m_pTouchControls->Console()->ExecuteLine(Buf);
 }
 
 void CTouchControls::CBindTouchButtonBehavior::OnDeactivate()
