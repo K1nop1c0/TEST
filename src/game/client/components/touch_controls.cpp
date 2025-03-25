@@ -24,7 +24,6 @@
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
-#include <iterator>
 
 using namespace std::chrono_literals;
 
@@ -75,6 +74,10 @@ CTouchControls::CTouchButton::CTouchButton(CTouchButton &&Other) noexcept :
 
 CTouchControls::CTouchButton &CTouchControls::CTouchButton::operator=(CTouchButton &&Other) noexcept
 {
+	if(this == &Other)
+	{
+		return *this;
+	}
 	m_pTouchControls = Other.m_pTouchControls;
 	Other.m_pTouchControls = nullptr;
 	m_UnitRect = Other.m_UnitRect;
@@ -2050,7 +2053,7 @@ void CTouchControls::NewButton()
 {
 	CTouchButton NewButton(this);
 	NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
-	// So the vector's elements might be moved.
+	// So the vector's elements might be moved. If moved all button's m_VisibilityCached will be set to false. This should be prevented.
 	std::vector<bool> CachedVisibilities;
 	CachedVisibilities.reserve(m_vTouchButtons.size());
 	for(const auto &Button : m_vTouchButtons)
