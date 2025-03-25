@@ -7,18 +7,20 @@
 #include <engine/input.h>
 
 #include <game/client/component.h>
-#include <game/client/ui_rect.h>
 #include <game/client/lineinput.h>
 #include <game/client/ui.h>
+#include <game/client/ui_rect.h>
 
+
+#include <array>
 #include <chrono>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
-#include <array>
+
 
 class CJsonWriter;
 typedef struct _json_value json_value;
@@ -82,10 +84,10 @@ public:
 		int m_H;
 		bool operator<(const CUnitRect &Other) const
 		{
-       		if (m_X + m_W / 2 != Other.m_X + Other.m_W / 2)
-      	    		return m_X + m_W / 2 < Other.m_X + Other.m_W / 2;
-     		return m_Y + m_H / 2  < Other.m_Y + Other.m_H / 2;
-  		}
+			if(m_X + m_W / 2 != Other.m_X + Other.m_W / 2)
+				return m_X + m_W / 2 < Other.m_X + Other.m_W / 2;
+			return m_Y + m_H / 2 < Other.m_Y + Other.m_H / 2;
+		}
 		//This means distance;
 		double operator/(const CUnitRect &Other) const
 		{
@@ -193,8 +195,8 @@ private:
 
 public:
 	class CTouchButtonBehavior;
-private:
 
+private:
 	class CTouchButton
 	{
 	public:
@@ -258,8 +260,8 @@ public:
 		virtual void OnDeactivate() {}
 		virtual void OnUpdate() {}
 		virtual void WriteToConfiguration(CJsonWriter *pWriter) = 0;
-		virtual const char* GetBehaviorType() const = 0;
-		virtual const char* GetPredefinedType() { return nullptr; }
+		virtual const char *GetBehaviorType() const = 0;
+		virtual const char *GetPredefinedType() { return nullptr; }
 	};
 
 	/**
@@ -280,8 +282,8 @@ public:
 		 * may override this, but they should call the parent function first.
 		 */
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
-		const char* GetBehaviorType() const override { return BEHAVIOR_TYPE; }
-		const char* GetPredefinedType() override { return m_pId; }
+		const char *GetBehaviorType() const override { return BEHAVIOR_TYPE; }
+		const char *GetPredefinedType() override { return m_pId; }
 
 	private:
 		const char *m_pId;
@@ -309,7 +311,7 @@ public:
 
 		CButtonLabel GetLabel() const override;
 		int GetNumber() const { return m_Number; }
-		void SetNumber(int &&Number)	{ m_Number = Number; }
+		void SetNumber(int &&Number) { m_Number = Number; }
 		void OnDeactivate() override;
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
 
@@ -458,7 +460,7 @@ public:
 		void OnDeactivate() override;
 		void OnUpdate() override;
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
-		const char* GetBehaviorType() const override { return BEHAVIOR_TYPE; }
+		const char *GetBehaviorType() const override { return BEHAVIOR_TYPE; }
 
 	private:
 		std::string m_Label;
@@ -503,7 +505,7 @@ public:
 		void SetCommand(std::vector<CCommand> &&Commands) { m_vCommands = Commands; }
 		void OnActivate() override;
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
-		const char* GetBehaviorType() const override { return BEHAVIOR_TYPE; }
+		const char *GetBehaviorType() const override { return BEHAVIOR_TYPE; }
 
 	private:
 		std::vector<CCommand> m_vCommands;
@@ -511,7 +513,6 @@ public:
 	};
 
 private:
-
 	/**
 	 * Mode of direct touch input while ingame.
 	 *
@@ -624,18 +625,19 @@ private:
 		CUnitRect m_Space;
 		std::unique_ptr<CQuadtreeNode> m_NW = nullptr, m_NE = nullptr, m_SW = nullptr, m_SE = nullptr;
 		std::vector<CUnitRect> m_Rects;
-		CQuadtreeNode(int X, int Y, int W, int H)
-        : m_Space({X, Y, W, H}) {}
+		CQuadtreeNode(int X, int Y, int W, int H) :
+			m_Space({X, Y, W, H}) {}
 		void Split();
 	};
 	class CQuadtree
 	{
 	public:
-		CQuadtree(int Width, int Height) 
-			: m_Root(0, 0, Width, Height), m_MaxObj(3), m_MaxDep(3) {}
-		
+		CQuadtree(int Width, int Height) :
+			m_Root(0, 0, Width, Height), m_MaxObj(3), m_MaxDep(3) {}
+
 		void Insert(const CUnitRect &Rect) { Insert(m_Root, Rect, 0); }
 		bool Find(const CUnitRect &MyRect) { return Find(MyRect, m_Root); }
+
 	private:
 		CQuadtreeNode m_Root;
 		const size_t m_MaxObj;
@@ -656,7 +658,6 @@ public:
 	CTouchButton *m_pLastSelectedButton = nullptr;
 	int m_CachedNumber = 0;
 	CTouchButtonBehavior *m_pCachedBehavior = nullptr; // For Render() to get the behavior data when the target button has nullptr behavior pointer.
-
 
 	void NewButton();
 	void DeleteButton();
