@@ -11,7 +11,6 @@
 #include <game/client/ui.h>
 #include <game/client/ui_rect.h>
 
-
 #include <array>
 #include <chrono>
 #include <functional>
@@ -20,7 +19,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
 
 class CJsonWriter;
 typedef struct _json_value json_value;

@@ -24,6 +24,7 @@
 #include <game/client/ui.h>
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
+#include <iterator>
 
 using namespace std::chrono_literals;
 
@@ -2049,6 +2050,13 @@ void CTouchControls::NewButton()
 {
 	CTouchButton NewButton(this);
 	NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
+	// So the vector's elements might be moved.
+	std::vector<bool> CachedVisibilities;
+	CachedVisibilities.reserve(m_vTouchButtons.size());
+	for(const auto &Button : m_vTouchButtons)
+	{
+		CachedVisibilities.emplace_back(Button.m_VisibilityCached);
+	}
 	m_vTouchButtons.push_back(std::move(NewButton));
 	m_pSelectedButton = &(m_vTouchButtons.back());
 	m_pSelectedButton->UpdatePointers();
@@ -2057,6 +2065,10 @@ void CTouchControls::NewButton()
 	{
 		if(GameClient()->m_Menus.m_aCachedVisibilities[Iterator] != 2)
 			m_pSelectedButton->m_vVisibilities.emplace_back((EButtonVisibility)Iterator, static_cast<bool>(GameClient()->m_Menus.m_aCachedVisibilities[Iterator]));
+	}
+	for(unsigned Iterator = 0; Iterator < CachedVisibilities.size(); Iterator++)
+	{
+		m_vTouchButtons[Iterator].m_VisibilityCached = CachedVisibilities[Iterator];
 	}
 	m_pCachedBehavior = m_pSelectedButton->m_pBehavior.get();
 	m_ShownRect = std::nullopt;
