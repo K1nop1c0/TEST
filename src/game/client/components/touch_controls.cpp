@@ -70,6 +70,8 @@ CTouchControls::CTouchButton::CTouchButton(CTouchButton &&Other) noexcept :
 	m_VisibilityCached(false)
 {
 	Other.m_pTouchControls = nullptr;
+	UpdatePointers();
+	UpdateScreenFromUnitRect();
 }
 
 CTouchControls::CTouchButton &CTouchControls::CTouchButton::operator=(CTouchButton &&Other) noexcept
