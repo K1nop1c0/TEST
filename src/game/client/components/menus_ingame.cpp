@@ -274,7 +274,7 @@ void CMenus::RenderGame(CUIRect MainView)
 			CUIRect VirtualVisibilityEditor;
 			if(GameClient()->m_TouchControls.IsButtonEditing())
 			{
-				//Only render this when a button is selected.
+				// Only render this when a button is selected.
 				MainView.HSplitTop(10.0f, nullptr, &MainView);
 				MainView.HSplitBottom(230.0f, &TouchButtonEditor, &TouchControlsEditor);
 				TouchButtonEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_T, 10.0f);
@@ -285,10 +285,10 @@ void CMenus::RenderGame(CUIRect MainView)
 			}
 			else
 			{
-				//No button selected, render it like the old days.
-				TouchControlsEditor.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
+				// No button editing
+				MainView.HMargin((MainView.h - 230.0f) / 2.0f, &TouchControlsEditor);
+				MainView.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
 				VirtualVisibilityEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_TR, 10.0f);
-				TouchControlsEditor.HMargin((TouchControlsEditor.h - 230.0f) / 2.0f, &TouchControlsEditor);
 			}
 			RenderVirtualVisibilityEditor(VirtualVisibilityEditor);
 			RenderTouchControlsEditor(TouchControlsEditor);

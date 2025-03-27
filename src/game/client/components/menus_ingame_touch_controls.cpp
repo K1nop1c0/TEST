@@ -7,6 +7,7 @@
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
 
+#include "engine/warning.h"
 #include "menus.h"
 
 #include <algorithm>
@@ -91,23 +92,22 @@ void CMenus::CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButt
 
 void CMenus::ResetCachedSettings()
 {
-	//Reset all cached values.
+	// Reset all cached values.
 	m_EditBehaviorType = 0;
 	m_PredefinedBehaviorType = 0;
 	GameClient()->m_TouchControls.m_CachedNumber = 0;
 	m_EditCommandNumber = 0;
-	m_InputCommand.Set("");
-	m_InputLabel.Set("");
 	m_vCachedCommands.clear();
 	m_vCachedCommands.reserve(5);
 	m_vCachedCommands.emplace_back("", CTouchControls::CButtonLabel::EType::PLAIN, "");
 	m_aCachedVisibilities.fill(2); // 2 means don't have the visibility, true:1,false:0
-	m_InputX.Clear();
-	m_InputY.Clear();
-	m_InputW.Clear();
-	m_InputH.Clear();
-	m_InputLabel.Clear();
-	m_InputCommand.Clear();
+	// These things can't be empty. std::stoi can't cast empty string.
+	m_InputX.Set("0");
+	m_InputY.Set("0");
+	m_InputW.Set("50000");
+	m_InputH.Set("50000");
+	m_InputLabel.Set("");
+	m_InputCommand.Set("");
 	m_CachedShape = CTouchControls::EButtonShape::RECT;
 }
 
@@ -444,7 +444,11 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	static CButtonContainer s_ConfirmButton;
 	if(DoButton_Menu(&s_ConfirmButton, "Save", 0, &A))
 	{
-		SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pSelectedButton);
+		m_OldSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
+		if(CheckCachedSettings())
+		{
+			SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pSelectedButton);
+		}
 	}
 
 	EditBox.VSplitLeft(EditBox.w * 2.0f / 3.0f, &A, &B);
@@ -523,10 +527,11 @@ void CMenus::RenderVirtualVisibilityEditor(CUIRect MainView)
 void CMenus::ChangeSelectedButtonWhileHavingUnsavedChanges(CTouchControls::CTouchButton *OldSelectedButton, CTouchControls::CTouchButton *NewSelectedButton)
 {
 	// Both can be nullptr.
+	// Saving settings to the old selected button, then switch to new selected button.
 	m_OldSelectedButton = OldSelectedButton;
 	m_NewSelectedButton = NewSelectedButton;
 	m_CloseMenu = false;
-	if(GameClient()->m_Menus.IsActive())
+	if(!GameClient()->m_Menus.IsActive())
 	{
 		GameClient()->m_Menus.SetActive(true);
 		m_CloseMenu = true;
@@ -536,7 +541,7 @@ void CMenus::ChangeSelectedButtonWhileHavingUnsavedChanges(CTouchControls::CTouc
 
 void CMenus::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *TargetButton)
 {
-	//Save the cached config to the target button.
+	// Save the cached config to the target button. If no button to save, create a new one.
 	if(TargetButton == nullptr)
 	{
 		TargetButton = GameClient()->m_TouchControls.NewButton();
@@ -575,8 +580,11 @@ void CMenus::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *TargetButt
 
 void CMenus::PopupConfirm_ChangeSelectedButton()
 {
-	SaveCachedSettingsToTarget(m_OldSelectedButton);
-	PopupCancel_ChangeSelectedButton();
+	if(CheckCachedSettings())
+	{
+		SaveCachedSettingsToTarget(m_OldSelectedButton);
+		PopupCancel_ChangeSelectedButton();
+	}
 }
 
 void CMenus::PopupCancel_ChangeSelectedButton()
@@ -599,8 +607,11 @@ void CMenus::PopupCancel_ChangeSelectedButton()
 
 void CMenus::PopupConfirm_NewButton()
 {
-	SaveCachedSettingsToTarget(m_OldSelectedButton);
-	PopupCancel_NewButton();
+	if(CheckCachedSettings())
+	{
+		SaveCachedSettingsToTarget(m_OldSelectedButton);
+		PopupCancel_NewButton();
+	}
 }
 
 void CMenus::PopupCancel_NewButton()
@@ -610,11 +621,14 @@ void CMenus::PopupCancel_NewButton()
 	GameClient()->m_TouchControls.m_pTmpButton = std::make_unique<CTouchControls::CTouchButton>(&GameClient()->m_TouchControls);
 	ResetCachedSettings();
 	SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pTmpButton.get());
+	m_UnsavedChanges = true;
 }
 
-const char *CMenus::CheckCachedSettings()
+bool CMenus::CheckCachedSettings()
 {
+	m_FatalError = false;
 	char ErrorBuf[256];
+	// Button has extra menu visibilities that doesn't have buttons to toggle them. This is meaningless.
 	const auto ExistingMenus = GameClient()->m_TouchControls.FindExistingExtraMenus();
 	for(int CurrentNumber = 0; CurrentNumber < CTouchControls::MAXNUMBER; CurrentNumber++)
 	{
@@ -624,10 +638,54 @@ const char *CMenus::CheckCachedSettings()
 			str_format(ErrorBuf, sizeof(ErrorBuf), "%sVisibility \"Extra Menu %d\" has no corresponding button to get activated or deactivated.\n", ErrorBuf, CurrentNumber + 1);
 		}
 	}
-	if(m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DEMO_PLAYER)] && m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::RCON_AUTHED)])
+	// Demo Player is used with other visibilities except Extra Menu. This is meaningless.
+	if(m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DEMO_PLAYER)] == 1 && (m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::RCON_AUTHED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::INGAME)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::VOTE_ACTIVE)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DUMMY_CONNECTED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DUMMY_ALLOWED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::ZOOM_ALLOWED)] != 2))
 	{
-		str_format(ErrorBuf, sizeof(ErrorBuf), "%sVisibility \"Demo Player\" and \"Rcon Authed\" is activate at the same time, the button is never visible.\n", ErrorBuf);
+		str_format(ErrorBuf, sizeof(ErrorBuf), "%sWhen visibility \"Demo Player\" is on, visibilities except Extra Menu is meaningless\n", ErrorBuf);
 	}
-	m_Error = ErrorBuf;
-	return m_Error.c_str();
+	// Bind Toggle has less than two commands. This is illegal.
+	if(m_EditBehaviorType == 1 && m_vCachedCommands.size() < 2)
+	{
+		str_format(ErrorBuf, sizeof(ErrorBuf), "%sCommands in Bind Toggle has less than two command. Add more commands or use Bind behavior.\n", ErrorBuf);
+		m_FatalError = true;
+	}
+	if(str_comp(ErrorBuf, "") != 0)
+	{
+		if(m_FatalError)
+		{
+			SWarning Warning("Error saving settings", ErrorBuf);
+			Warning.m_AutoHide = false;
+			Client()->AddWarning(Warning);
+		}
+		else
+		{
+			PopupConfirm("Redundant settings", ErrorBuf, "Continue Saving", "Cancel", &CMenus::PopupConfirm_SaveSettings);
+		}
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
+void CMenus::SelectedButtonNotVisible()
+{
+	// Cancel shouldn't do anything but open ingame menu, the menu is already opened now.
+	PopupConfirm("Selected button not visible", "The selected button is not visible, do you want to de-select it or edit it's visibility?", "De-select", "Edit", &CMenus::PopupConfirm_SelectedNotVisible);
+}
+
+void CMenus::PopupConfirm_SelectedNotVisible()
+{
+	if(m_UnsavedChanges)
+	{
+		// The m_pSelectedButton can't nullptr, because this function is triggered when selected button not visible.
+		ChangeSelectedButtonWhileHavingUnsavedChanges(GameClient()->m_TouchControls.m_pSelectedButton, nullptr);
+	}
+	else
+	{
+		GameClient()->m_TouchControls.m_pTmpButton = nullptr;
+		GameClient()->m_TouchControls.m_pSelectedButton = nullptr;
+		SetActive(false);
+	}
 }

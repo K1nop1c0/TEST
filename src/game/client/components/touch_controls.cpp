@@ -70,6 +70,7 @@ CTouchControls::CTouchButton::CTouchButton(CTouchButton &&Other) noexcept :
 	m_VisibilityCached(false)
 {
 	Other.m_pTouchControls = nullptr;
+	// Bro costs me hours debugging. Screw you.
 	UpdatePointers();
 	UpdateScreenFromUnitRect();
 }
@@ -799,6 +800,7 @@ void CTouchControls::OnRender()
 	}
 	// If not editing, deselect it.
 	m_pSelectedButton = nullptr;
+	m_pTmpButton = nullptr;
 	RenderButtons();
 }
 
@@ -1245,6 +1247,7 @@ bool CTouchControls::ParseConfiguration(const void *pFileData, unsigned FileLeng
 
 	//If successfully parsing buttons, deselect it.
 	m_pSelectedButton = nullptr;
+	m_pTmpButton = nullptr;
 
 	return true;
 }
@@ -1818,11 +1821,8 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 		// If selected button not visible, unselect it.
 		else if(m_pSelectedButton == &TouchButton && !GameClient()->m_Menus.IsActive())
 		{
-			if(GameClient()->m_Menus.m_UnsavedChanges)
-			{
-				GameClient()->m_Menus.ChangeSelectedButtonWhileHavingUnsavedChanges(m_pSelectedButton, nullptr);
-			}
-			m_pSelectedButton = nullptr;
+			GameClient()->m_Menus.SetActive(true);
+			GameClient()->m_Menus.SelectedButtonNotVisible();
 		}
 	}
 	// If LongPress == true, LongPress finger has to be outside of all visible buttons.
@@ -1830,8 +1830,16 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 	{
 		if(GameClient()->m_Menus.m_UnsavedChanges)
 		{
-			GameClient()->m_Menus.ChangeSelectedButtonWhileHavingUnsavedChanges(m_pSelectedButton, nullptr);
+			if(m_pSelectedButton != nullptr)
+				GameClient()->m_Menus.ChangeSelectedButtonWhileHavingUnsavedChanges(m_pSelectedButton, nullptr);
+			else if(m_pTmpButton != nullptr)
+			{
+				// First nullptr: Save the cached settings to "nullptr", a new button will be created automatically.
+				// Second nullptr: Reset all cached settings to default.
+				GameClient()->m_Menus.ChangeSelectedButtonWhileHavingUnsavedChanges(nullptr, nullptr);
+			}
 		}
+		m_pTmpButton = nullptr;
 		m_pSelectedButton = nullptr;
 		m_LongPress = false;
 		m_LongPressFingerState = std::nullopt;
@@ -2066,6 +2074,7 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(const std::set<CUnitRec
 	return TRec;
 }
 
+// Create a new button and push_back to m_vTouchButton, then return a pointer.
 CTouchControls::CTouchButton *CTouchControls::NewButton()
 {
 	CTouchButton NewButton(this);

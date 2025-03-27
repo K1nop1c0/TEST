@@ -862,7 +862,7 @@ private:
 	CServerProcess m_ServerProcess;
 
 	// found in menus_ingame_touch_controls.cpp
-	int m_EditBehaviorType = 0; // Default = bind
+	int m_EditBehaviorType = 0; // Default = bind. 1 = bind-toggle, 2 = predefined.
 	int m_PredefinedBehaviorType = 0; // Default = extra menu
 	int m_EditCommandNumber = 0;
 	bool m_CloseMenu = false; // Decide if closing menu after the popup confirm.
@@ -874,6 +874,7 @@ private:
 
 public:
 	bool m_UnsavedChanges = false;
+	bool m_FatalError = false; // True when cached setting is illegal.
 	CTouchControls::EButtonShape m_CachedShape;
 	CTouchControls::CTouchButton *m_OldSelectedButton = nullptr;
 	CTouchControls::CTouchButton *m_NewSelectedButton = nullptr;
@@ -891,16 +892,19 @@ public:
 	void CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButton);
 	void SaveCachedSettingsToTarget(CTouchControls::CTouchButton *TargetButton);
 	void ResetCachedSettings();
+	void SelectedButtonNotVisible();
 
 private:
 	void InputPosFunction(CLineInputBuffered<7> *Input, std::string *SavedString); // Used for input button's X,Y,W,H.
 	void RenderTouchButtonEditor(CUIRect MainView);
 	void RenderVirtualVisibilityEditor(CUIRect MainView);
-	const char *CheckCachedSettings();
+	bool CheckCachedSettings();
 	// Confirm, Cancel only decide if saving changes.
 	void PopupConfirm_ChangeSelectedButton();
 	void PopupCancel_ChangeSelectedButton();
 	void PopupConfirm_NewButton();
 	void PopupCancel_NewButton();
+	void PopupConfirm_SaveSettings() { SaveCachedSettingsToTarget(m_OldSelectedButton); }
+	void PopupConfirm_SelectedNotVisible();
 };
 #endif
