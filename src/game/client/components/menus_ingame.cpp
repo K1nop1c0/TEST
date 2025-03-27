@@ -272,7 +272,7 @@ void CMenus::RenderGame(CUIRect MainView)
 			CUIRect TouchControlsEditor;
 			CUIRect TouchButtonEditor;
 			CUIRect VirtualVisibilityEditor;
-			if(GameClient()->m_TouchControls.IsButtonSelected())
+			if(GameClient()->m_TouchControls.IsButtonEditing())
 			{
 				//Only render this when a button is selected.
 				MainView.HSplitTop(10.0f, nullptr, &MainView);
@@ -282,14 +282,15 @@ void CMenus::RenderGame(CUIRect MainView)
 				RenderTouchButtonEditor(TouchButtonEditor);
 				TouchControlsEditor.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
 				VirtualVisibilityEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_BR, 10.0f);
-				RenderVirtualVisibilityEditor(VirtualVisibilityEditor);
 			}
 			else
 			{
 				//No button selected, render it like the old days.
-				MainView.VMargin((MainView.w - 505.0f) / 2.0f, &TouchControlsEditor);
+				TouchControlsEditor.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
+				VirtualVisibilityEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_TR, 10.0f);
 				TouchControlsEditor.HMargin((TouchControlsEditor.h - 230.0f) / 2.0f, &TouchControlsEditor);
 			}
+			RenderVirtualVisibilityEditor(VirtualVisibilityEditor);
 			RenderTouchControlsEditor(TouchControlsEditor);
 		}
 	}
@@ -298,7 +299,7 @@ void CMenus::RenderGame(CUIRect MainView)
 void CMenus::RenderTouchControlsEditor(CUIRect MainView)
 {
 	CUIRect Label, Button, Row;
-	MainView.Draw(ms_ColorTabbarActive, GameClient()->m_TouchControls.IsButtonSelected() ? IGraphics::CORNER_BL : IGraphics::CORNER_ALL, 10.0f);
+	MainView.Draw(ms_ColorTabbarActive, GameClient()->m_TouchControls.IsButtonEditing() ? IGraphics::CORNER_BL : IGraphics::CORNER_TL, 10.0f);
 	MainView.Margin(10.0f, &MainView);
 
 	MainView.HSplitTop(25.0f, &Row, &MainView);

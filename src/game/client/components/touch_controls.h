@@ -71,7 +71,8 @@ public:
 	void SetEditingActive(bool EditingActive) { m_EditingActive = EditingActive; }
 	bool HasEditingChanges() const { return m_EditingChanges; }
 	void SetEditingChanges(bool EditingChanges) { m_EditingChanges = EditingChanges; }
-	bool IsButtonSelected() const { return m_pSelectedButton != nullptr; }
+	bool IsButtonEditing() const { return m_pSelectedButton != nullptr || m_pTmpButton != nullptr; }
+	bool IsRealButtonSelected() const { return m_pSelectedButton != nullptr; }
 
 	class CUnitRect
 	{
@@ -120,6 +121,7 @@ public:
 		EXTRA_MENU_5,
 		NUM_VISIBILITIES
 	};
+	static const constexpr int MAXNUMBER = (int)EButtonVisibility::EXTRA_MENU_5 - (int)EButtonVisibility::EXTRA_MENU_1 + 1;
 
 	enum class EButtonShape
 	{
@@ -194,7 +196,6 @@ private:
 public:
 	class CTouchButtonBehavior;
 
-private:
 	class CTouchButton
 	{
 	public:
@@ -231,7 +232,6 @@ private:
 		void WriteToConfiguration(CJsonWriter *pWriter);
 	};
 
-public:
 	class CTouchButtonBehavior
 	{
 	public:
@@ -645,32 +645,39 @@ private:
 	};
 	CUnitRect FindPositionXY(const std::set<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect);
 
-	std::unique_ptr<CTouchButton> m_pTmpButton = std::make_unique<CTouchButton>(this); // This is for render, when directly slide to move buttons on screen.
 	void RenderButtonsWhileInEditor();
 
-public:
-	CTouchButton *m_pSelectedButton = nullptr;
-	std::optional<CTouchControls::CUnitRect> m_ShownRect;
-	std::array<bool, (size_t)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVirtualVisibilities;
-	std::vector<CBindToggleTouchButtonBehavior::CCommand> m_vCachedCommands;
-	CTouchButton *m_pLastSelectedButton = nullptr;
-	int m_CachedNumber = 0;
-	CTouchButtonBehavior *m_pCachedBehavior = nullptr; // For Render() to get the behavior data when the target button has nullptr behavior pointer.
+	// For process fingerstates in button editor.
+	bool m_LongPress = false;
+	std::optional<IInput::CTouchFingerState> m_ActiveFingerState;
+	std::optional<IInput::CTouchFingerState> m_ZoomFingerState;
+	vec2 m_ZoomStartPos = {0.0f, 0.0f};
+	vec2 m_AccumulatedDelta = {0.0f, 0.0f};
+	std::vector<IInput::CTouchFingerState> m_vDeletedFingerState;
 
-	void NewButton();
+public:
+	std::optional<IInput::CTouchFingerState> m_LongPressFingerState;
+	CTouchButton *m_pSelectedButton = nullptr;
+	std::unique_ptr<CTouchButton> m_pTmpButton = nullptr; // This is for render, when directly slide to move buttons on screen. It's behavior should always be nullptr so Render() recognise it.
+	std::optional<CUnitRect> m_ShownRect;
+	std::array<bool, (size_t)EButtonVisibility::NUM_VISIBILITIES> m_aVirtualVisibilities;
+	int m_CachedNumber = 0;
+
+	CTouchButton *NewButton();
 	void DeleteButton();
+	std::array<bool, MAXNUMBER> FindExistingExtraMenus();
 
 	const CBehaviorFactoryEditor m_BehaviorFactoriesEditor[10] = {
-		{CTouchControls::CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&]() { return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber); }},
-		{CTouchControls::CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
-		{CTouchControls::CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
-		{CTouchControls::CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
-		{CTouchControls::CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
-		{CTouchControls::CUseActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
-		{CTouchControls::CSwapActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
-		{CTouchControls::CSpectateTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
-		{CTouchControls::CEmoticonTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
-		{CTouchControls::CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
+		{CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&]() { return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber); }},
+		{CJoystickHookTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickHookTouchButtonBehavior>(); }},
+		{CJoystickFireTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickFireTouchButtonBehavior>(); }},
+		{CJoystickAimTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickAimTouchButtonBehavior>(); }},
+		{CJoystickActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CJoystickActionTouchButtonBehavior>(); }},
+		{CUseActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CUseActionTouchButtonBehavior>(); }},
+		{CSwapActionTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSwapActionTouchButtonBehavior>(); }},
+		{CSpectateTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CSpectateTouchButtonBehavior>(); }},
+		{CEmoticonTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CEmoticonTouchButtonBehavior>(); }},
+		{CIngameMenuTouchButtonBehavior::BEHAVIOR_ID, []() { return std::make_unique<CIngameMenuTouchButtonBehavior>(); }}};
 };
 
 #endif
