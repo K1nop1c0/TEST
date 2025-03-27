@@ -122,6 +122,33 @@ void CTouchControls::CTouchButton::UpdateScreenFromUnitRect()
 	}
 }
 
+CUIRect CTouchControls::CalculateScreenFromUnitRect(CUnitRect Unit, EButtonShape Shape)
+{
+	const vec2 ScreenSize = CalculateScreenSize();
+	CUIRect ScreenRect;
+	ScreenRect.x = Unit.m_X * ScreenSize.x / BUTTON_SIZE_SCALE;
+	ScreenRect.y = Unit.m_Y * ScreenSize.y / BUTTON_SIZE_SCALE;
+	ScreenRect.w = Unit.m_W * ScreenSize.x / BUTTON_SIZE_SCALE;
+	ScreenRect.h = Unit.m_H * ScreenSize.y / BUTTON_SIZE_SCALE;
+
+	// Enforce circle shape so the screen rect can be used for mapping the touch input position
+	if(Shape == EButtonShape::CIRCLE)
+	{
+		if(ScreenRect.h > ScreenRect.w)
+		{
+			ScreenRect.y += (ScreenRect.h - ScreenRect.w) / 2.0f;
+			ScreenRect.h = ScreenRect.w;
+		}
+		else if(ScreenRect.w > ScreenRect.h)
+		{
+			ScreenRect.x += (ScreenRect.w - ScreenRect.h) / 2.0f;
+			ScreenRect.w = ScreenRect.h;
+		}
+	}
+
+	return ScreenRect;
+}
+
 void CTouchControls::CTouchButton::UpdateBackgroundCorners()
 {
 	if(m_Shape != EButtonShape::RECT)
@@ -242,25 +269,33 @@ bool CTouchControls::CTouchButton::IsVisible() const
 }
 
 // TODO: Optimization: Use text and quad containers for rendering
-void CTouchControls::CTouchButton::Render() const
+void CTouchControls::CTouchButton::Render(std::optional<CUnitRect> Rect, std::optional<ColorRGBA> Color) const
 {
 	if(m_pBehavior == nullptr)
 		dbg_assert(false, "Detected nullptr Behavior while rendering buttons.");
-	const bool Selected = (this == m_pTouchControls->m_pTmpButton.get());
-	const bool CheckActive = (Selected) ? true : m_pBehavior->IsActive();
-	const ColorRGBA ButtonColor = CheckActive ? m_pTouchControls->m_BackgroundColorActive : m_pTouchControls->m_BackgroundColorInactive;
+	CUIRect ScreenRect;
+	if(Rect.has_value())
+		ScreenRect = m_pTouchControls->CalculateScreenFromUnitRect(*Rect, m_Shape);
+	else
+		ScreenRect = m_ScreenRect;
+
+	ColorRGBA ButtonColor;
+	if(Color.has_value())
+		ButtonColor = *Color;
+	else
+		ButtonColor = m_pBehavior->IsActive() ? m_pTouchControls->m_BackgroundColorActive : m_pTouchControls->m_BackgroundColorInactive;
 
 	switch(m_Shape)
 	{
 	case EButtonShape::RECT:
 	{
-		m_ScreenRect.Draw(ButtonColor, m_pTouchControls->m_EditingActive ? IGraphics::CORNER_NONE : m_BackgroundCorners, 10.0f);
+		ScreenRect.Draw(ButtonColor, m_pTouchControls->m_EditingActive ? IGraphics::CORNER_NONE : m_BackgroundCorners, 10.0f);
 		break;
 	}
 	case EButtonShape::CIRCLE:
 	{
-		const vec2 Center = m_ScreenRect.Center();
-		const float Radius = minimum(m_ScreenRect.w, m_ScreenRect.h) / 2.0f;
+		const vec2 Center = ScreenRect.Center();
+		const float Radius = minimum(ScreenRect.w, ScreenRect.h) / 2.0f;
 		m_pTouchControls->Graphics()->TextureClear();
 		m_pTouchControls->Graphics()->QuadsBegin();
 		m_pTouchControls->Graphics()->SetColor(ButtonColor);
@@ -269,14 +304,14 @@ void CTouchControls::CTouchButton::Render() const
 		break;
 	}
 	default:
-		dbg_assert(false, "Unhandled shape, Selected=%d, CheckActive=%d", Selected ? 1 : 0, CheckActive ? 1 : 0);
+		dbg_assert(false, "Unhandled shape");
 		break;
 	}
 
 	const float FontSize = 22.0f;
 	CButtonLabel LabelData = m_pBehavior->GetLabel();
 	CUIRect LabelRect;
-	m_ScreenRect.Margin(10.0f, &LabelRect);
+	ScreenRect.Margin(10.0f, &LabelRect);
 	SLabelProperties LabelProps;
 	LabelProps.m_MaxWidth = LabelRect.w;
 	if(LabelData.m_Type == CButtonLabel::EType::ICON)
@@ -1853,6 +1888,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			m_pTmpButton->m_UnitRect.m_X += UnitXYDelta.x;
 			m_pTmpButton->m_UnitRect.m_Y += UnitXYDelta.y;
 			m_ShownRect = FindPositionXY(vVisibleButtonRects, m_pTmpButton->m_UnitRect);
+			GameClient()->m_Menus.m_UnsavedChanges = true;
 		}
 		else if(m_ActiveFingerState.has_value() && m_ZoomFingerState.has_value())
 		{
@@ -1918,6 +1954,7 @@ void CTouchControls::EditButtons(const std::vector<IInput::CTouchFingerState> &v
 			}
 			(*m_ShownRect).m_W = BiggestW.value_or((*m_ShownRect).m_W);
 			(*m_ShownRect).m_H = BiggestH.value_or((*m_ShownRect).m_H);
+			GameClient()->m_Menus.m_UnsavedChanges = true;
 		}
 		// No finger on screen, then show it as is.
 		else
@@ -1964,8 +2001,8 @@ void CTouchControls::RenderButtonsWhileInEditor()
 		}
 	}
 
-	if(m_pTmpButton != nullptr)
-		m_pTmpButton->Render();
+	if(m_pTmpButton != nullptr && m_ShownRect.has_value())
+		m_pTmpButton->Render(*(m_ShownRect));
 }
 
 void CTouchControls::CQuadtreeNode::Split()

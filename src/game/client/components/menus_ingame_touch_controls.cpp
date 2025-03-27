@@ -433,12 +433,12 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	}
 	s_VisibilityScrollRegion.End();
 
-	//Combine left and right together.
+	// Combine left and right together.
 	Left.w = MainView.w;
 	Left.w -= 10.0f;
 	Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
-	//Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
+	// Confirm && Cancel button share 1/2 width, and they will be shaped into square, placed at the middle of their space.
 	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &EditBox);
 	A.VMargin((A.w - 100.0f) / 2.0f, &A);
 	static CButtonContainer s_ConfirmButton;
@@ -447,7 +447,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		m_OldSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
 		if(CheckCachedSettings())
 		{
-			SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pSelectedButton);
+			SaveCachedSettingsToTarget(m_OldSelectedButton);
 		}
 	}
 
@@ -462,7 +462,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	static CButtonContainer s_CancelButton;
 	if(DoButton_Menu(&s_CancelButton, "Cancel", 0, &B))
 	{
-		//Since the settings are cancelled, reset the cached settings to m_pSelectedButton though selected button didn't change.
+		// Since the settings are cancelled, reset the cached settings to m_pSelectedButton though selected button didn't change.
 		CacheAllSettingsFromTarget(GameClient()->m_TouchControls.m_pSelectedButton);
 		m_UnsavedChanges = false;
 	}
@@ -556,8 +556,8 @@ void CMenus::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *TargetButt
 		if(m_aCachedVisibilities[Iterator] != 2)
 			TargetButton->m_vVisibilities.emplace_back((CTouchControls::EButtonVisibility)Iterator, static_cast<bool>(m_aCachedVisibilities[Iterator]));
 	}
-	TargetButton->UpdateScreenFromUnitRect();
 	TargetButton->m_Shape = m_CachedShape;
+	TargetButton->UpdateScreenFromUnitRect();
 	if(m_EditBehaviorType == 0)
 	{
 		TargetButton->m_pBehavior = std::make_unique<CTouchControls::CBindTouchButtonBehavior>(m_vCachedCommands[0].m_Label.c_str(), m_vCachedCommands[0].m_LabelType, m_vCachedCommands[0].m_Command.c_str());

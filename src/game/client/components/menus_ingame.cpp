@@ -287,7 +287,7 @@ void CMenus::RenderGame(CUIRect MainView)
 			{
 				// No button editing
 				MainView.HMargin((MainView.h - 230.0f) / 2.0f, &TouchControlsEditor);
-				MainView.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
+				TouchControlsEditor.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
 				VirtualVisibilityEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_TR, 10.0f);
 			}
 			RenderVirtualVisibilityEditor(VirtualVisibilityEditor);

@@ -130,6 +130,8 @@ public:
 		NUM_SHAPES
 	};
 
+	CUIRect CalculateScreenFromUnitRect(CUnitRect Unit, EButtonShape Shape);
+
 	class CButtonLabel
 	{
 	public:
@@ -228,7 +230,7 @@ public:
 		bool IsInside(vec2 TouchPosition) const;
 		void UpdateVisibility();
 		bool IsVisible() const;
-		void Render() const;
+		void Render(std::optional<CUnitRect> Rect = std::nullopt, std::optional<ColorRGBA> Color = std::nullopt) const;
 		void WriteToConfiguration(CJsonWriter *pWriter);
 	};
 
