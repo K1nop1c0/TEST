@@ -7,24 +7,28 @@
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
 
-#include "engine/warning.h"
+#include "base/system.h"
 #include "menus.h"
 
 #include <algorithm>
+#include <string>
 
 static const char *BEHAVIORS[] = {"Bind", "Bind Toggle", "Predefined"};
 static const char *PREDEFINEDS[] = {"Extra Menu", "Joystick Hook", "Joystick Fire", "Joystick Aim", "Joystick Action", "Use Action", "Swap Action", "Spectate", "Emoticon", "Ingame Menu"};
 static const char *LABELTYPES[] = {"Plain", "Localized", "Icon"};
 static const ColorRGBA LABELCOLORS[2] = {ColorRGBA(0.3f, 0.3f, 0.3f, 1.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f)};
 
-//This is called when the Touch button editor is rendered, the below one. Also when selectedbutton changes. Used for updating all cached settings.
+// This is called when the Touch button editor is rendered, the below one. Also when selectedbutton changes. Used for updating all cached settings.
 void CMenus::CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButton)
 {
-	// This will as well give m_vCachedCommands one default member.
+	// This reset will as well give m_vCachedCommands one default member.
 	ResetCachedSettings();
 	if(TargetButton == nullptr)
+	{
+		Console()->ExecuteLine("echo nothing to cache");
 		return; // Nothing to cache.
-	//These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
+	}
+	// These values can't be null. The constructor has been updated. Default:{0,0,50000,50000}, shape = rect.
 	m_InputX.Set(std::to_string(TargetButton->m_UnitRect.m_X).c_str());
 	m_InputY.Set(std::to_string(TargetButton->m_UnitRect.m_Y).c_str());
 	m_InputW.Set(std::to_string(TargetButton->m_UnitRect.m_W).c_str());
@@ -37,7 +41,7 @@ void CMenus::CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButt
 		m_aCachedVisibilities[(int)Visibility.m_Type] = Visibility.m_Parity ? 1 : 0;
 	}
 
-	//These are behavior values.
+	// These are behavior values.
 	if(TargetButton->m_pBehavior != nullptr)
 	{
 		std::string BehaviorType = TargetButton->m_pBehavior->GetBehaviorType();
@@ -45,7 +49,7 @@ void CMenus::CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButt
 		{
 			m_EditBehaviorType = 0;
 			auto *CastedBehavior = static_cast<CTouchControls::CBindTouchButtonBehavior *>(TargetButton->m_pBehavior.get());
-			//Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
+			// Take care m_LabelType must not be null as for now. When adding a new button give it a default value or cry.
 			m_vCachedCommands[0].m_Label = CastedBehavior->GetLabel().m_pLabel;
 			m_vCachedCommands[0].m_LabelType = CastedBehavior->GetLabel().m_Type;
 			m_vCachedCommands[0].m_Command = CastedBehavior->GetCommand();
@@ -71,7 +75,7 @@ void CMenus::CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButt
 			if(PredefinedType == nullptr)
 				m_PredefinedBehaviorType = 0;
 			else
-				for(m_PredefinedBehaviorType = 0; m_PredefinedBehaviorType < 10 && PredefinedType != GameClient()->m_TouchControls.m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId; m_PredefinedBehaviorType++)
+				for(m_PredefinedBehaviorType = 0; m_PredefinedBehaviorType < 10 && str_comp(PredefinedType, GameClient()->m_TouchControls.m_BehaviorFactoriesEditor[m_PredefinedBehaviorType].m_pId) != 0; m_PredefinedBehaviorType++)
 					/*Update m_PredefinedBehaviorType, nothing else should be done here*/;
 
 			if(m_PredefinedBehaviorType == 10)
@@ -83,7 +87,7 @@ void CMenus::CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButt
 				GameClient()->m_TouchControls.m_CachedNumber = CastedBehavior->GetNumber();
 			}
 		}
-		else //Empty
+		else // Empty
 			dbg_assert(false, "Detected out of bound value in m_EditBehaviorType");
 	}
 	if(m_vCachedCommands.size() < 2)
@@ -123,16 +127,19 @@ void CMenus::InputPosFunction(CLineInputBuffered<7> *Input, std::string *SavedSt
 		return Value != '0';
 	});
 	InputValue.erase(InputValue.begin(), LeadingZero);
+	if(InputValue == "")
+		InputValue = "0";
+	(*Input).Set(InputValue.c_str());
 	*SavedString = (*Input).GetString();
-	GameClient()->m_TouchControls.m_ShownRect.value().m_X = std::stoi((*Input).GetString());
 	m_UnsavedChanges = true;
 }
 
 void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 {
-	//Delete if user inputs value that is not digits.
+	// Delete if user inputs value that is not digits.
 	static std::string s_SavedX = "0", s_SavedY = "0", s_SavedW = "50000", s_SavedH = "50000";
-
+	// Used to decide if need to update the tmpbutton.
+	bool Changed = false;
 	CUIRect Left, Right, A, B, EditBox, VisRec;
 	MainView.VSplitLeft(MainView.w / 4.0f, &Left, &Right);
 	Left.Margin(5.0f, &Left);
@@ -143,9 +150,10 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	if(Ui()->DoClearableEditBox(&m_InputX, &EditBox, 12.0f))
 	{
 		InputPosFunction(&m_InputX, &s_SavedX);
+		Changed = true;
 	}
 
-	//Auto check if the input value contains char that is not digit. If so delete it.
+	// Auto check if the input value contains char that is not digit. If so delete it.
 	Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	EditBox.VSplitLeft(25.0f, &A, &EditBox);
@@ -153,6 +161,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	if(Ui()->DoClearableEditBox(&m_InputY, &EditBox, 12.0f))
 	{
 		InputPosFunction(&m_InputY, &s_SavedY);
+		Changed = true;
 	}
 
 	Left.HSplitTop(25.0f, &EditBox, &Left);
@@ -162,6 +171,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	if(Ui()->DoClearableEditBox(&m_InputW, &EditBox, 12.0f))
 	{
 		InputPosFunction(&m_InputW, &s_SavedW);
+		Changed = true;
 	}
 
 	Left.HSplitTop(25.0f, &EditBox, &Left);
@@ -171,9 +181,10 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	if(Ui()->DoClearableEditBox(&m_InputH, &EditBox, 12.0f))
 	{
 		InputPosFunction(&m_InputH, &s_SavedH);
+		Changed = true;
 	}
 
-	//Drop down menu for shapes
+	// Drop down menu for shapes
 	Left.HSplitTop(25.0f, &EditBox, &Left);
 	Left.HSplitTop(5.0f, nullptr, &Left);
 	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
@@ -189,9 +200,10 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	{
 		m_CachedShape = NewButtonShape;
 		m_UnsavedChanges = true;
+		Changed = true;
 	}
 
-	//Right for behaviors, left(center) for visibility. They share 0.75 width of mainview, each 0.375.
+	// Right for behaviors, left(center) for visibility. They share 0.75 width of mainview, each 0.375.
 	Right.VSplitMid(&VisRec, &Right);
 	Right.Margin(5.0f, &Right);
 	Right.HSplitTop(25.0f, &EditBox, &Right);
@@ -220,6 +232,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 		}
 		m_UnsavedChanges = true;
+		Changed = true;
 	}
 
 	Right.HSplitTop(25.0f, &EditBox, &Right);
@@ -234,6 +247,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			m_vCachedCommands[0].m_Command = m_InputCommand.GetString();
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 	else if(m_EditBehaviorType == 1)
@@ -256,7 +270,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 		}
 		B.VSplitLeft(B.w * 0.6f, &A, &B);
-		//m_EditCommandNumber counts from 0. But shown from 1.
+		// m_EditCommandNumber counts from 0. But shown from 1.
 		Ui()->DoLabel(&A, std::to_string(m_EditCommandNumber + 1).c_str(), 16.0f, TEXTALIGN_MC);
 		B.VSplitLeft(B.w / 2.0f, &A, &B);
 		static CButtonContainer s_IncreaseButton;
@@ -267,6 +281,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 			{
 				m_vCachedCommands.emplace_back("", CTouchControls::CButtonLabel::EType::PLAIN, "");
 				m_UnsavedChanges = true;
+				Changed = true;
 			}
 			if(m_vCachedCommands.size() <= static_cast<size_t>(m_EditCommandNumber))
 				dbg_assert(false, "commands.size < number at do increase button");
@@ -289,6 +304,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 			m_InputCommand.Set(m_vCachedCommands[m_EditCommandNumber].m_Command.c_str());
 			m_InputLabel.Set(m_vCachedCommands[m_EditCommandNumber].m_Label.c_str());
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 	else if(m_EditBehaviorType == 2)
@@ -302,6 +318,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			m_PredefinedBehaviorType = NewPredefined;
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 	Right.HSplitTop(25.0f, &EditBox, &Right);
@@ -316,6 +333,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			m_vCachedCommands[0].m_Label = m_InputLabel.GetString();
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 	else if(m_EditBehaviorType == 1)
@@ -325,11 +343,12 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			m_vCachedCommands[m_EditCommandNumber].m_Command = m_InputCommand.GetString();
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 	else if(m_EditBehaviorType == 2 && m_PredefinedBehaviorType == 0) // Extra menu type, needs to input number.
 	{
-		//Increase & Decrease button share 1/2 width, the rest is for label.
+		// Increase & Decrease button share 1/2 width, the rest is for label.
 		EditBox.VSplitLeft(EditBox.w / 4, &A, &B);
 		SMenuButtonProperties Props;
 		Props.m_UseIconFont = true;
@@ -341,6 +360,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 				// Menu Number also counts from 1, but written as 0.
 				GameClient()->m_TouchControls.m_CachedNumber--;
 				m_UnsavedChanges = true;
+				Changed = true;
 			}
 		}
 
@@ -353,6 +373,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 			{
 				GameClient()->m_TouchControls.m_CachedNumber++;
 				m_UnsavedChanges = true;
+				Changed = true;
 			}
 		}
 	}
@@ -372,6 +393,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			m_vCachedCommands[0].m_LabelType = NewButtonLabelType;
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 	else if(m_EditBehaviorType == 1)
@@ -381,6 +403,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			m_vCachedCommands[m_EditCommandNumber].m_Label = m_InputLabel.GetString();
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 	Right.HSplitTop(25.0f, &EditBox, &Right);
@@ -399,10 +422,11 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		{
 			m_vCachedCommands[m_EditCommandNumber].m_LabelType = NewButtonLabelType;
 			m_UnsavedChanges = true;
+			Changed = true;
 		}
 	}
 
-	//Visibilities time. This is button's visibility, not virtual.
+	// Visibilities time. This is button's visibility, not virtual.
 	VisRec.h = 150.0f;
 	VisRec.Margin(5.0f, &VisRec);
 	static CScrollRegion s_VisibilityScrollRegion;
@@ -423,6 +447,7 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 				m_aCachedVisibilities[Current] += 2;
 				m_aCachedVisibilities[Current] %= 3;
 				m_UnsavedChanges = true;
+				Changed = true;
 			}
 			TextRender()->TextColor(LABELCOLORS[m_aCachedVisibilities[Current] == 2 ? 0 : 1]);
 			char aBuf[20];
@@ -448,6 +473,8 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 		if(CheckCachedSettings())
 		{
 			SaveCachedSettingsToTarget(m_OldSelectedButton);
+			GameClient()->m_TouchControls.SetEditingChanges(true);
+			m_UnsavedChanges = false;
 		}
 	}
 
@@ -464,17 +491,32 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 	{
 		// Since the settings are cancelled, reset the cached settings to m_pSelectedButton though selected button didn't change.
 		CacheAllSettingsFromTarget(GameClient()->m_TouchControls.m_pSelectedButton);
+		if(GameClient()->m_TouchControls.m_pSelectedButton == nullptr)
+		{
+			GameClient()->m_TouchControls.m_pTmpButton = nullptr;
+			GameClient()->m_TouchControls.m_ShownRect = std::nullopt;
+		}
 		m_UnsavedChanges = false;
+		Changed = true;
 	}
 
 	Left.HSplitTop(25.0f, &EditBox, &Left);
-	EditBox.VSplitLeft(EditBox.w / 2.0f, &A, &B);
-	A.VMargin((A.w - 150.0f) / 2.0f, &A);
-	B.VMargin((B.w - 150.0f) / 2.0f, &B);
+	EditBox.VSplitLeft(EditBox.w / 4.0f, &A, &B);
+	A.VMargin(10.0f, &A);
 	static CButtonContainer s_AddNewButton;
-	if(DoButton_Menu(&s_AddNewButton, "New Button", 0, &A))
+	bool Checked = GameClient()->m_TouchControls.m_pSelectedButton == nullptr;
+	if(DoButton_Menu(&s_AddNewButton, "New Button", Checked ? 1 : 0, &A))
 	{
-		if(m_UnsavedChanges)
+		CTouchControls::CUnitRect FreeRect = GameClient()->m_TouchControls.UpdatePosition({0, 0, 50000, 50000}, true);
+		if(Checked)
+		{
+			PopupMessage("Already Created New Button", "A new button is already created, please save or delete it before creating a new one", "OK");
+		}
+		else if(FreeRect.m_X == -1)
+		{
+			PopupMessage("No Space", "No enough space for another button.", "OK");
+		}
+		else if(m_UnsavedChanges)
 		{
 			PopupConfirm("Unsaved Changes", "Save all changes before creating another button?", "Save", "Discard", &CMenus::PopupConfirm_NewButton, POPUP_NONE, &CMenus::PopupCancel_NewButton);
 		}
@@ -483,10 +525,78 @@ void CMenus::RenderTouchButtonEditor(CUIRect MainView)
 			PopupCancel_NewButton();
 		}
 	}
+
+	B.VSplitLeft(B.w / 3.0f, &A, &B);
+	A.VMargin(10.0f, &A);
 	static CButtonContainer s_RemoveButton;
-	if(DoButton_Menu(&s_RemoveButton, "Delete Button", 0, &B))
+	if(DoButton_Menu(&s_RemoveButton, "Delete Button", 0, &A))
 	{
 		GameClient()->m_TouchControls.DeleteButton();
+	}
+
+	// Create a new button with current cached settings. Auto moving to nearest empty space.
+	B.VSplitLeft(B.w / 2.0f, &A, &B);
+	A.VMargin(10.0f, &A);
+	static CButtonContainer s_CopyPasteButton;
+	if(DoButton_Menu(&s_CopyPasteButton, "C&P Button", m_UnsavedChanges || Checked ? 1 : 0, &A))
+	{
+		if(Checked)
+		{
+			PopupMessage("Already Created New Button", "A new button is already created, please save or delete it before creating a new one", "OK");
+		}
+		else if(m_UnsavedChanges)
+		{
+			PopupMessage("Unsaved Changes", "Save changes before copy paste a button.", "OK");
+		}
+		else
+		{
+			CTouchControls::CUnitRect FreeRect = GameClient()->m_TouchControls.UpdatePosition(GameClient()->m_TouchControls.m_ShownRect.value(), true);
+			if(FreeRect.m_X == -1)
+			{
+				FreeRect.m_W = 50000;
+				FreeRect.m_H = 50000;
+				FreeRect = GameClient()->m_TouchControls.UpdatePosition(FreeRect, true);
+				if(FreeRect.m_X == -1)
+				{
+					PopupMessage("No Space", "No enough space for another button.", "OK");
+				}
+				else
+				{
+					PopupMessage("Not Enough Space", "Space is not enough for another button with this size. The button has been resized.", "OK");
+				}
+			}
+			if(FreeRect.m_X != -1) // FreeRect might change. Don't use else here.
+			{
+				GameClient()->m_TouchControls.m_pSelectedButton = nullptr;
+				m_InputX.Set(std::to_string(FreeRect.m_X).c_str());
+				m_InputY.Set(std::to_string(FreeRect.m_Y).c_str());
+				m_InputW.Set(std::to_string(FreeRect.m_W).c_str());
+				m_InputH.Set(std::to_string(FreeRect.m_H).c_str());
+				SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pTmpButton.get());
+				GameClient()->m_TouchControls.m_ShownRect = GameClient()->m_TouchControls.m_pTmpButton->m_UnitRect;
+				Changed = true;
+				m_UnsavedChanges = true;
+			}
+		}
+	}
+
+	// Deselect a button.
+	B.VMargin(10.0f, &B);
+	static CButtonContainer s_DeselectButton;
+	if(DoButton_Menu(&s_DeselectButton, "De-Select", 0, &B))
+	{
+		m_OldSelectedButton = GameClient()->m_TouchControls.m_pSelectedButton;
+		m_NewSelectedButton = nullptr;
+		if(m_UnsavedChanges)
+		{
+			PopupConfirm("Unsaved Changes", "Do you want to save all changes before de-select?", "Save", "Discard", &CMenus::PopupConfirm_DeselectButton, POPUP_NONE, &CMenus::PopupCancel_DeselectButton);
+		}
+	}
+
+	if(Changed == true)
+	{
+		SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pTmpButton.get());
+		GameClient()->m_TouchControls.m_ShownRect = GameClient()->m_TouchControls.m_pTmpButton->m_UnitRect;
 	}
 }
 
@@ -541,11 +651,13 @@ void CMenus::ChangeSelectedButtonWhileHavingUnsavedChanges(CTouchControls::CTouc
 
 void CMenus::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *TargetButton)
 {
-	// Save the cached config to the target button. If no button to save, create a new one.
+	// Save the cached config to the target button. If no button to save, create a new one, then select it.
 	if(TargetButton == nullptr)
 	{
 		TargetButton = GameClient()->m_TouchControls.NewButton();
+		GameClient()->m_TouchControls.m_pSelectedButton = TargetButton;
 	}
+
 	TargetButton->m_UnitRect.m_X = std::stoi(m_InputX.GetString());
 	TargetButton->m_UnitRect.m_Y = std::stoi(m_InputY.GetString());
 	TargetButton->m_UnitRect.m_W = std::stoi(m_InputW.GetString());
@@ -575,7 +687,6 @@ void CMenus::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *TargetButt
 			TargetButton->m_pBehavior = std::make_unique<CTouchControls::CExtraMenuTouchButtonBehavior>(GameClient()->m_TouchControls.m_CachedNumber);
 	}
 	TargetButton->UpdatePointers();
-	m_UnsavedChanges = false;
 }
 
 void CMenus::PopupConfirm_ChangeSelectedButton()
@@ -583,23 +694,29 @@ void CMenus::PopupConfirm_ChangeSelectedButton()
 	if(CheckCachedSettings())
 	{
 		SaveCachedSettingsToTarget(m_OldSelectedButton);
+		GameClient()->m_TouchControls.SetEditingChanges(true);
+		m_UnsavedChanges = false;
 		PopupCancel_ChangeSelectedButton();
 	}
 }
 
 void CMenus::PopupCancel_ChangeSelectedButton()
 {
-	GameClient()->m_TouchControls.m_LongPressFingerState = std::nullopt;
 	GameClient()->m_TouchControls.m_pSelectedButton = m_NewSelectedButton;
 	if(m_NewSelectedButton != nullptr)
 	{
 		CacheAllSettingsFromTarget(m_NewSelectedButton);
+		m_UnsavedChanges = false;
 		GameClient()->m_TouchControls.m_pTmpButton = std::make_unique<CTouchControls::CTouchButton>(&GameClient()->m_TouchControls);
 		SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pTmpButton.get());
+		GameClient()->m_TouchControls.m_ShownRect = GameClient()->m_TouchControls.m_pTmpButton->m_UnitRect;
 	}
 	else
 	{
+		CacheAllSettingsFromTarget(nullptr);
 		GameClient()->m_TouchControls.m_pTmpButton = nullptr;
+		GameClient()->m_TouchControls.m_ShownRect = std::nullopt;
+		m_UnsavedChanges = false;
 	}
 	if(m_CloseMenu)
 		GameClient()->m_Menus.SetActive(false);
@@ -610,6 +727,7 @@ void CMenus::PopupConfirm_NewButton()
 	if(CheckCachedSettings())
 	{
 		SaveCachedSettingsToTarget(m_OldSelectedButton);
+		GameClient()->m_TouchControls.SetEditingChanges(true);
 		PopupCancel_NewButton();
 	}
 }
@@ -617,31 +735,37 @@ void CMenus::PopupConfirm_NewButton()
 void CMenus::PopupCancel_NewButton()
 {
 	// New button doesn't create a real button, instead it reset the tmpbutton to cache every setting. When saving a the tmpbutton then a real button will be created.
+	CTouchControls::CUnitRect FreeRect = GameClient()->m_TouchControls.UpdatePosition({0, 0, 50000, 50000}, true);
 	GameClient()->m_TouchControls.m_pSelectedButton = nullptr;
 	GameClient()->m_TouchControls.m_pTmpButton = std::make_unique<CTouchControls::CTouchButton>(&GameClient()->m_TouchControls);
 	ResetCachedSettings();
+	m_InputX.Set(std::to_string(FreeRect.m_X).c_str());
+	m_InputY.Set(std::to_string(FreeRect.m_Y).c_str());
+	m_InputW.Set(std::to_string(FreeRect.m_W).c_str());
+	m_InputH.Set(std::to_string(FreeRect.m_H).c_str());
 	SaveCachedSettingsToTarget(GameClient()->m_TouchControls.m_pTmpButton.get());
+	GameClient()->m_TouchControls.m_ShownRect = GameClient()->m_TouchControls.m_pTmpButton->m_UnitRect;
 	m_UnsavedChanges = true;
 }
 
 bool CMenus::CheckCachedSettings()
 {
 	m_FatalError = false;
-	char ErrorBuf[256];
-	// Button has extra menu visibilities that doesn't have buttons to toggle them. This is meaningless.
-	const auto ExistingMenus = GameClient()->m_TouchControls.FindExistingExtraMenus();
-	for(int CurrentNumber = 0; CurrentNumber < CTouchControls::MAXNUMBER; CurrentNumber++)
+	char ErrorBuf[256] = "";
+	int X = std::stoi(m_InputX.GetString());
+	int Y = std::stoi(m_InputY.GetString());
+	int W = std::stoi(m_InputW.GetString());
+	int H = std::stoi(m_InputH.GetString());
+	// Illegal size settings.
+	if(W < 50000 || W > 500000 || H < 50000 || H > 500000)
 	{
-		int CachedSetting = m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::EXTRA_MENU_1) + CurrentNumber];
-		if(CachedSetting != 2 && ExistingMenus[CurrentNumber] == false)
-		{
-			str_format(ErrorBuf, sizeof(ErrorBuf), "%sVisibility \"Extra Menu %d\" has no corresponding button to get activated or deactivated.\n", ErrorBuf, CurrentNumber + 1);
-		}
+		str_format(ErrorBuf, sizeof(ErrorBuf), "%sWidth and Height are required to be within the range of [50,000, 500,000].\n", ErrorBuf);
+		m_FatalError = true;
 	}
-	// Demo Player is used with other visibilities except Extra Menu. This is meaningless.
-	if(m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DEMO_PLAYER)] == 1 && (m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::RCON_AUTHED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::INGAME)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::VOTE_ACTIVE)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DUMMY_CONNECTED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DUMMY_ALLOWED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::ZOOM_ALLOWED)] != 2))
+	if(GameClient()->m_TouchControls.IfOverlapping({X, Y, W, H}))
 	{
-		str_format(ErrorBuf, sizeof(ErrorBuf), "%sWhen visibility \"Demo Player\" is on, visibilities except Extra Menu is meaningless\n", ErrorBuf);
+		str_format(ErrorBuf, sizeof(ErrorBuf), "%sThe selected button is overlapping with other buttons.\n", ErrorBuf);
+		m_FatalError = true;
 	}
 	// Bind Toggle has less than two commands. This is illegal.
 	if(m_EditBehaviorType == 1 && m_vCachedCommands.size() < 2)
@@ -649,13 +773,39 @@ bool CMenus::CheckCachedSettings()
 		str_format(ErrorBuf, sizeof(ErrorBuf), "%sCommands in Bind Toggle has less than two command. Add more commands or use Bind behavior.\n", ErrorBuf);
 		m_FatalError = true;
 	}
+	// Button has extra menu visibilities that doesn't have buttons to toggle them. This is meaningless.
+	const auto ExistingMenus = GameClient()->m_TouchControls.FindExistingExtraMenus();
+	bool FirstCheck = false;
+	for(int CurrentNumber = 0; CurrentNumber < CTouchControls::MAXNUMBER; CurrentNumber++)
+	{
+		int CachedSetting = m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::EXTRA_MENU_1) + CurrentNumber];
+		if(CachedSetting != 2 && ExistingMenus[CurrentNumber] == false)
+		{
+			if(FirstCheck == false)
+			{
+				str_format(ErrorBuf, sizeof(ErrorBuf), "%sVisibility \"Extra Menu %d", ErrorBuf, CurrentNumber + 1);
+				FirstCheck = true;
+			}
+			else
+			{
+				str_format(ErrorBuf, sizeof(ErrorBuf), "%s, %d", ErrorBuf, CurrentNumber + 1);
+			}
+		}
+	}
+	if(FirstCheck)
+	{
+		str_format(ErrorBuf, sizeof(ErrorBuf), "%s\" has no corresponding button to get activated or deactivated.\n", ErrorBuf);
+	}
+	// Demo Player is used with other visibilities except Extra Menu. This is meaningless.
+	if(m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DEMO_PLAYER)] == 1 && (m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::RCON_AUTHED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::INGAME)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::VOTE_ACTIVE)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DUMMY_CONNECTED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::DUMMY_ALLOWED)] != 2 || m_aCachedVisibilities[(int)(CTouchControls::EButtonVisibility::ZOOM_ALLOWED)] != 2))
+	{
+		str_format(ErrorBuf, sizeof(ErrorBuf), "%sWhen visibility \"Demo Player\" is on, visibilities except Extra Menu is meaningless.\n", ErrorBuf);
+	}
 	if(str_comp(ErrorBuf, "") != 0)
 	{
 		if(m_FatalError)
 		{
-			SWarning Warning("Error saving settings", ErrorBuf);
-			Warning.m_AutoHide = false;
-			Client()->AddWarning(Warning);
+			PopupMessage("Illegal settings", ErrorBuf, "OK");
 		}
 		else
 		{
@@ -689,3 +839,90 @@ void CMenus::PopupConfirm_SelectedNotVisible()
 		SetActive(false);
 	}
 }
+
+void CMenus::PopupConfirm_DeselectButton()
+{
+	if(CheckCachedSettings())
+	{
+		SaveCachedSettingsToTarget(m_OldSelectedButton);
+		GameClient()->m_TouchControls.SetEditingChanges(true);
+		PopupCancel_DeselectButton();
+	}
+}
+
+void CMenus::PopupCancel_DeselectButton()
+{
+	GameClient()->m_TouchControls.m_pSelectedButton = nullptr;
+	GameClient()->m_TouchControls.m_pTmpButton = nullptr;
+	GameClient()->m_TouchControls.m_ShownRect = std::nullopt;
+	m_UnsavedChanges = false;
+	ResetCachedSettings();
+}
+
+void CMenus::NoSpaceForOverlappingButton()
+{
+	SetActive(true);
+	PopupMessage("No Space", "No space left for the button. Make sure you didn't choose wrong visibilities, or edit its size.", "OK");
+}
+
+void CMenus::RenderTinyButtonTab(CUIRect MainView)
+{
+	MainView.Margin(10.0f, &MainView);
+	MainView.VMargin((MainView.w - 150.0f) / 2.0f, &MainView);
+	static CButtonContainer s_TabNewButton;
+	if(DoButton_Menu(&s_TabNewButton, "New Button", 0, &MainView))
+	{
+		CTouchControls::CUnitRect FreeRect = GameClient()->m_TouchControls.UpdatePosition({0, 0, 50000, 50000}, true);
+		if(FreeRect.m_X == -1)
+		{
+			PopupMessage("No Space", "No enough space for another button. Check if you choosed a wrong visibility.", "OK");
+		}
+		else
+		{
+			PopupCancel_NewButton();
+		}
+	}
+}
+
+/*
+	Note: FindPositionXY is used for finding a position of the current moving rect not overlapping with other visible rects.
+		  It's a bit slow, time = o(n^2 * logn), maybe need optimization in the future.
+
+	General Logic: key elements: unique_ptr<CTouchButton>m_pTmpButton, optional<CUnitRect>m_ShownRect, CachedSettings(A group of elements stored in menus.h)
+								   CTouchButton *m_pSelectedButton, m_vTouchButton, touch_controls.json
+				   touch_controls.json stores all buttons that are already saved to the system, when you enter the game,
+				   The buttons in touch_conrtols.json will be parsed into m_vTouchButton.
+				   m_vTouchButton stores currently real ingame buttons, when you quit the editor, only buttons in m_vTouchButton will exist.
+				   m_pSelectedButton is a pointer that points to an exact button in m_vTouchButton or nullptr, not anything else.
+				   Its data shouldn't be changed anytime except when player wants to save the cached controls.
+				   Upon changing the member it's pointing to, will check if there's unsaved changes, and popup confirm if saving data before changing.
+				   If changes are made through sliding screen, and only for a small distance(<10000 unit), will not consider it as a change. Any changes made in editor will be considered as a change.
+				   m_pTmpButton stores current settings, when it is nullptr, usually no button selected, no settings that cached(Cached settings won't be deleted. They still exist but meaningless), will update when changes are made in editor as well.
+				   m_ShownRect for rendering the m_pTmpButton.
+				   SelectedButton won't be rendered, instead it will render m_ShownRect(Using m_pTmpButton's behavior). While sliding on screen directly,
+				   TmpButton will be overlapping with other buttons, m_ShownRect will get a position that not overlapping, as well closest to TmpButton.
+				   So m_ShownRect could pass through blocks.
+				   m_ShownRect is also used for saving the UnitRect data, so don't use m_pTmpButton's unitrect, it might be dangerous.
+				   At any moment if there's no space for a button, FindPosition will return {-1, -1, -1, -1}, and then trigger the function NoSpaceForOverlappingButton().
+				   This function will open editor automatically.
+
+	Updates: Deleted the pointer that points to the joystick, instead made a counter that will be 0 if no joystick pressed.
+			 TouchButton.Render() now has two default arguments. First one Selected == true to force Render() using activated button color, Selected == false using deactivated color. Second one force Render() to render the button using the given rect.
+			 The default touch control has overlapping buttons.
+		{
+			"x": 100000,
+			"y": 666667, (OVERLAPPING ONE UNIT)
+			"w": 200000,
+			"h": 166667,
+			"shape": "rect",
+			"visibilities": [
+				"ingame"
+			],
+			"behavior": {
+				"type": "bind",
+				"label": "Jump",
+				"label-type": "localized",
+				"command": "+jump"
+			}
+		}, Overlapping the +left and +right buttons. So its "y" is changed to 666666.
+*/

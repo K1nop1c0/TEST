@@ -560,7 +560,7 @@ protected:
 		SHA256_DIGEST m_Sha256;
 
 		CAbstractCommunityIconJob(CMenus *pMenus, const char *pCommunityId, int StorageType);
-		virtual ~CAbstractCommunityIconJob(){};
+		virtual ~CAbstractCommunityIconJob() {};
 
 	public:
 		const char *CommunityId() const { return m_aCommunityId; }
@@ -891,14 +891,16 @@ public:
 	void ChangeSelectedButtonWhileHavingUnsavedChanges(CTouchControls::CTouchButton *OldSelectedButton, CTouchControls::CTouchButton *NewSelectedButton);
 	void CacheAllSettingsFromTarget(CTouchControls::CTouchButton *TargetButton);
 	void SaveCachedSettingsToTarget(CTouchControls::CTouchButton *TargetButton);
-	void ResetCachedSettings();
 	void SelectedButtonNotVisible();
+	void NoSpaceForOverlappingButton();
 
 private:
 	void InputPosFunction(CLineInputBuffered<7> *Input, std::string *SavedString); // Used for input button's X,Y,W,H.
 	void RenderTouchButtonEditor(CUIRect MainView);
 	void RenderVirtualVisibilityEditor(CUIRect MainView);
+	void RenderTinyButtonTab(CUIRect MainView);
 	bool CheckCachedSettings();
+	void ResetCachedSettings(); // You can use CacheAllSettingsFromTarget(nullptr) to call this.
 	// Confirm, Cancel only decide if saving changes.
 	void PopupConfirm_ChangeSelectedButton();
 	void PopupCancel_ChangeSelectedButton();
@@ -906,5 +908,7 @@ private:
 	void PopupCancel_NewButton();
 	void PopupConfirm_SaveSettings() { SaveCachedSettingsToTarget(m_OldSelectedButton); }
 	void PopupConfirm_SelectedNotVisible();
+	void PopupConfirm_DeselectButton();
+	void PopupCancel_DeselectButton();
 };
 #endif

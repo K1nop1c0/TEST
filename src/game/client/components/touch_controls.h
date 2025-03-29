@@ -87,7 +87,7 @@ public:
 				return m_X + m_W / 2 < Other.m_X + Other.m_W / 2;
 			return m_Y + m_H / 2 < Other.m_Y + Other.m_H / 2;
 		}
-		//This means distance;
+		// This means distance;
 		double operator/(const CUnitRect &Other) const
 		{
 			double Dx = Other.m_X + Other.m_W / 2.0f - m_X - m_W / 2.0f;
@@ -104,7 +104,7 @@ public:
 		}
 	};
 
-	//12 Visibilities
+	// 12 Visibilities
 	enum class EButtonVisibility
 	{
 		INGAME,
@@ -130,7 +130,7 @@ public:
 		NUM_SHAPES
 	};
 
-	CUIRect CalculateScreenFromUnitRect(CUnitRect Unit, EButtonShape Shape);
+	CUIRect CalculateScreenFromUnitRect(CUnitRect Unit, EButtonShape Shape = EButtonShape::RECT);
 
 	class CButtonLabel
 	{
@@ -230,7 +230,7 @@ public:
 		bool IsInside(vec2 TouchPosition) const;
 		void UpdateVisibility();
 		bool IsVisible() const;
-		void Render(std::optional<CUnitRect> Rect = std::nullopt, std::optional<ColorRGBA> Color = std::nullopt) const;
+		void Render(std::optional<bool> Selected = std::nullopt, std::optional<CUnitRect> Rect = std::nullopt) const;
 		void WriteToConfiguration(CJsonWriter *pWriter);
 	};
 
@@ -668,6 +668,8 @@ public:
 	CTouchButton *NewButton();
 	void DeleteButton();
 	std::array<bool, MAXNUMBER> FindExistingExtraMenus();
+	bool IfOverlapping(CUnitRect MyRect);
+	CUnitRect UpdatePosition(CUnitRect MyRect, bool Ignore = false); // If Ignore == true, then the function will also try to avoid m_pSelectedButton.
 
 	const CBehaviorFactoryEditor m_BehaviorFactoriesEditor[10] = {
 		{CExtraMenuTouchButtonBehavior::BEHAVIOR_ID, [&]() { return std::make_unique<CExtraMenuTouchButtonBehavior>(m_CachedNumber); }},

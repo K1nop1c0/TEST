@@ -266,12 +266,13 @@ void CMenus::RenderGame(CUIRect MainView)
 		{
 			Console()->ExecuteLine("toggle_local_console");
 		}
-
+		// GameClient()->m_TouchControls.SetEditingActive(true);
 		if(GameClient()->m_TouchControls.IsEditingActive())
 		{
 			CUIRect TouchControlsEditor;
 			CUIRect TouchButtonEditor;
 			CUIRect VirtualVisibilityEditor;
+			CUIRect TinyButtonTab;
 			if(GameClient()->m_TouchControls.IsButtonEditing())
 			{
 				// Only render this when a button is selected.
@@ -286,12 +287,15 @@ void CMenus::RenderGame(CUIRect MainView)
 			else
 			{
 				// No button editing
-				MainView.HMargin((MainView.h - 230.0f) / 2.0f, &TouchControlsEditor);
+				MainView.HMargin((MainView.h - 275.0f) / 2.0f, &TouchControlsEditor);
+				TouchControlsEditor.HSplitBottom(45.0f, &TouchControlsEditor, &TinyButtonTab);
 				TouchControlsEditor.VSplitLeft(505.0f, &TouchControlsEditor, &VirtualVisibilityEditor);
 				VirtualVisibilityEditor.Draw(ms_ColorTabbarActive, IGraphics::CORNER_TR, 10.0f);
+				TinyButtonTab.Draw(ms_ColorTabbarActive, IGraphics::CORNER_B, 10.0f);
 			}
 			RenderVirtualVisibilityEditor(VirtualVisibilityEditor);
 			RenderTouchControlsEditor(TouchControlsEditor);
+			RenderTinyButtonTab(TinyButtonTab);
 		}
 	}
 }
