@@ -242,7 +242,6 @@ public:
 		virtual void OnUpdate() {}
 		virtual void WriteToConfiguration(CJsonWriter *pWriter) = 0;
 		virtual const char *GetBehaviorType() const = 0;
-		virtual const char *GetPredefinedType() { return nullptr; }
 	};
 
 	/**
@@ -264,7 +263,7 @@ public:
 		 */
 		void WriteToConfiguration(CJsonWriter *pWriter) override;
 		const char *GetBehaviorType() const override { return BEHAVIOR_TYPE; }
-		const char *GetPredefinedType() override { return m_pId; }
+		const char *GetPredefinedType() { return m_pId; }
 
 	private:
 		const char *m_pId;

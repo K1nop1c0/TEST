@@ -95,7 +95,7 @@ public:
 		CTouchControls::CBindToggleTouchButtonBehavior::CCommand m_CachedCommands;
 		CButtonContainer m_BindToggleAddButtons;
 		CButtonContainer m_BindToggleDeleteButtons;
-		CButtonContainer m_aLabelTypeRadios[3];
+		CButtonContainer m_aLabelTypeRadios[(int)CTouchControls::CButtonLabel::EType::NUM_TYPES];
 		CGameClient *m_pGameClient;
 
 		CBehaviorElements() = delete;
@@ -121,7 +121,7 @@ public:
 	// Used for creating ui elements.
 	std::array<CButtonContainer, (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES> m_aVisibilityIds = {};
 	std::array<CButtonContainer, (unsigned)ESortType::NUM_SORTS> m_aSortHeaderIds = {};
-	std::array<CButtonContainer, 3> m_aEditElementIds = {};
+	std::array<CButtonContainer, (unsigned)EElementType::NUM_ELEMENTS> m_aEditElementIds = {};
 
 	// Functional variables.
 	bool m_FirstEnter = true; // Execute something when first opening the editor.

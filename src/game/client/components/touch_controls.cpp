@@ -2372,9 +2372,13 @@ std::array<bool, CTouchControls::MAXNUMBER> CTouchControls::FindExistingExtraMen
 	aResult.fill(false);
 	for(auto &TouchButton : m_vTouchButtons)
 	{
-		const char *pPredefinedType = TouchButton.m_pBehavior->GetPredefinedType();
-		if(pPredefinedType == nullptr)
+		const char *pBehaviorType = TouchButton.m_pBehavior->GetBehaviorType();
+		if(str_comp(pBehaviorType, CTouchControls::CPredefinedTouchButtonBehavior::BEHAVIOR_TYPE) != 0)
+		{
 			continue;
+		}
+		auto *pTargetBehavior = static_cast<CTouchControls::CPredefinedTouchButtonBehavior *>(TouchButton.m_pBehavior.get());
+		const char *pPredefinedType = pTargetBehavior->GetPredefinedType();
 		if(str_comp(pPredefinedType, "extra-menu") == 0)
 		{
 			const auto *pButtonBehavior = static_cast<CExtraMenuTouchButtonBehavior *>(TouchButton.m_pBehavior.get());
