@@ -1256,8 +1256,8 @@ void CMenusIngameTouchControls::CacheAllSettingsFromTarget(CTouchControls::CTouc
 
 			if(m_PredefinedBehaviorType == (int)EPredefinedType::EXTRA_MENU)
 			{
-				auto *pTargetBehavior = static_cast<CTouchControls::CExtraMenuTouchButtonBehavior *>(pTargetButton->m_pBehavior.get());
-				m_CachedExtraMenuNumber = pTargetBehavior->GetNumber();
+				auto *pExtraMenuBehavior = static_cast<CTouchControls::CExtraMenuTouchButtonBehavior *>(pTargetButton->m_pBehavior.get());
+				m_CachedExtraMenuNumber = pExtraMenuBehavior->GetNumber();
 			}
 		}
 		else // Empty
@@ -1414,7 +1414,7 @@ std::string CMenusIngameTouchControls::DetermineTouchButtonCommandLabel(CTouchCo
 	}
 	else if(str_comp(pBehaviorType, CTouchControls::CPredefinedTouchButtonBehavior::BEHAVIOR_TYPE) == 0)
 	{
-		auto *pTargetBehavior = static_cast<CTouchControls::CPredefinedTouchButtonBehavior *>(pTargetButton->m_pBehavior.get());
+		auto *pTargetBehavior = static_cast<CTouchControls::CPredefinedTouchButtonBehavior *>(pButton->m_pBehavior.get());
 		const char *pPredefinedType = pTargetBehavior->GetPredefinedType();
 		const char *apPredefineds[] = {Localize("Extra Menu", "Predefined touch button behaviors"), Localize("Joystick Hook", "Predefined touch button behaviors"), Localize("Joystick Fire", "Predefined touch button behaviors"), Localize("Joystick Aim", "Predefined touch button behaviors"), Localize("Joystick Action"), Localize("Use Action"), Localize("Swap Action", "Predefined touch button behaviors"), Localize("Spectate", "Predefined touch button behaviors"), Localize("Emoticon", "Predefined touch button behaviors"), Localize("Ingame Menu", "Predefined touch button behaviors")};
 		std::string Command = apPredefineds[CalculatePredefinedType(pPredefinedType)];
