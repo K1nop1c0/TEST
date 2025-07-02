@@ -1115,7 +1115,7 @@ void CMenusIngameTouchControls::ChangeSelectedButtonWhileHavingUnsavedChanges()
 {
 	// Both old and new button pointer can be nullptr.
 	// Saving settings to the old selected button(nullptr = create), then switch to new selected button(new = haven't created).
-	GameClient()->m_Menus.PopupConfirm(Localize("Unsaved changes"), "Save all changes before switching selected button?", Localize("Save"), Localize("Discard"), &CMenus::PopupConfirmChangeSelectedButton, CMenus::POPUP_NONE, &CMenus::PopupCancelChangeSelectedButton);
+	GameClient()->m_Menus.PopupConfirm(Localize("Unsaved changes"), Localize("Save all changes before switching selected button?"), Localize("Save"), Localize("Discard"), &CMenus::PopupConfirmChangeSelectedButton, CMenus::POPUP_NONE, &CMenus::PopupCancelChangeSelectedButton);
 }
 
 void CMenusIngameTouchControls::NoSpaceForOverlappingButton()
