@@ -1278,7 +1278,6 @@ void CMenusIngameTouchControls::SaveCachedSettingsToTarget(CTouchControls::CTouc
 			if(m_aCachedVisibilities[Iterator] != (int)EVisibilityType::IGNORE)
 				pTargetButton->m_vVisibilities.emplace_back((CTouchControls::EButtonVisibility)Iterator, m_aCachedVisibilities[Iterator] == (int)EVisibilityType::INCLUDE);
 		}
-		GameClient()->m_TouchControls.SetSelectedButton(pTargetButton);
 	}
 
 	pTargetButton->m_UnitRect.m_W = std::clamp(m_InputW.GetInteger(), CTouchControls::BUTTON_SIZE_MINIMUM, CTouchControls::BUTTON_SIZE_MAXIMUM);

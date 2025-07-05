@@ -1928,7 +1928,7 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 		{
 			m_pSampleButton->m_UnitRect = *m_ShownRect;
 			m_PopupParam.m_pNewSelectedButton = nullptr;
-			m_PopupParam.m_pOldSelectedButton = nullptr;
+			m_PopupParam.m_pOldSelectedButton = m_pSelectedButton;
 			m_PopupParam.m_KeepMenuOpen = false;
 			m_PopupParam.m_PopupType = EPopupType::BUTTON_CHANGED;
 			GameClient()->m_Menus.SetActive(true);
@@ -2332,6 +2332,7 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(std::vector<CUnitRect> 
 // Create a new button and push_back to m_vTouchButton, then return a pointer.
 CTouchControls::CTouchButton *CTouchControls::NewButton()
 {
+	// Ensure m_pSelectedButton doesn't go wild.
 	int Target = -1;
 	if(m_pSelectedButton != nullptr)
 		Target = std::distance(m_vTouchButtons.data(), m_pSelectedButton);
