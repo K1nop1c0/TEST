@@ -561,7 +561,7 @@ bool CMenusIngameTouchControls::RenderVisibilitySettingBlock(CUIRect Block)
 	bool Changed = false;
 	CUIRect EditBox, LeftButton, MiddleButton, RightButton;
 
-	//Block.HSplitTop(ROWGAP, nullptr, &Block);
+	// Block.HSplitTop(ROWGAP, nullptr, &Block);
 	static CScrollRegion s_VisibilityScrollRegion;
 	CScrollRegionParams ScrollParam;
 	ScrollParam.m_ScrollUnit = 90.0f;
@@ -1266,12 +1266,12 @@ void CMenusIngameTouchControls::CacheAllSettingsFromTarget(CTouchControls::CTouc
 }
 
 // Will override everything in the button. If nullptr is passed, a new button will be created.
-void CMenusIngameTouchControls::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *pTargetButton, CTouchControls::CTouchButton *pUpdatePointer)
+void CMenusIngameTouchControls::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *pTargetButton)
 {
 	// Save the cached config to the target button. If no button to save, create a new one, then select it.
 	if(pTargetButton == nullptr)
 	{
-		pTargetButton = GameClient()->m_TouchControls.NewButton(pUpdatePointer);
+		pTargetButton = GameClient()->m_TouchControls.NewButton();
 		// Keep the new button's visibility equal to the last selected one.
 		for(unsigned Iterator = (unsigned)CTouchControls::EButtonVisibility::INGAME; Iterator < (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES; ++Iterator)
 		{

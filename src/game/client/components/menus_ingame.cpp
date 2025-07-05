@@ -421,7 +421,7 @@ void CMenus::PopupConfirmChangeSelectedButton()
 {
 	if(m_MenusIngameTouchControls.CheckCachedSettings())
 	{
-		m_MenusIngameTouchControls.SaveCachedSettingsToTarget(m_MenusIngameTouchControls.m_pOldSelectedButton, m_MenusIngameTouchControls.m_pNewSelectedButton);
+		m_MenusIngameTouchControls.SaveCachedSettingsToTarget(m_MenusIngameTouchControls.m_pOldSelectedButton);
 		GameClient()->m_TouchControls.SetEditingChanges(true);
 		m_MenusIngameTouchControls.SetUnsavedChanges(false);
 		PopupCancelChangeSelectedButton();
@@ -430,6 +430,9 @@ void CMenus::PopupConfirmChangeSelectedButton()
 
 void CMenus::PopupCancelChangeSelectedButton()
 {
+	// The pointer might be wild due to the push_back.
+	if(m_MenusIngameTouchControls.m_pNewSelectedButton != nullptr)
+		m_MenusIngameTouchControls.m_pNewSelectedButton = GameClient()->m_TouchControls.SelectedButton();
 	GameClient()->m_TouchControls.SetSelectedButton(m_MenusIngameTouchControls.m_pNewSelectedButton);
 	m_MenusIngameTouchControls.CacheAllSettingsFromTarget(m_MenusIngameTouchControls.m_pNewSelectedButton);
 	m_MenusIngameTouchControls.SetUnsavedChanges(false);

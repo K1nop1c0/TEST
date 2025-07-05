@@ -2330,11 +2330,11 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(std::vector<CUnitRect> 
 }
 
 // Create a new button and push_back to m_vTouchButton, then return a pointer.
-CTouchControls::CTouchButton *CTouchControls::NewButton(CTouchButton *&pUpdatePointer)
+CTouchControls::CTouchButton *CTouchControls::NewButton()
 {
 	int Target = -1;
-	if(pUpdatePointer != nullptr)
-		Target = std::distance(m_vTouchButtons.data(), pUpdatePointer);
+	if(m_pSelectedButton != nullptr)
+		Target = std::distance(m_vTouchButtons.data(), m_pSelectedButton);
 	CTouchButton NewButton(this);
 	NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
 	// So the vector's elements might be moved. If moved all button's m_VisibilityCached will be set to false. This should be prevented.
@@ -2350,7 +2350,7 @@ CTouchControls::CTouchButton *CTouchControls::NewButton(CTouchButton *&pUpdatePo
 	}
 	m_vTouchButtons.push_back(std::move(NewButton));
 	if(Target != -1)
-		pUpdatePointer = &m_vTouchButtons[Target];
+		m_pSelectedButton = &m_vTouchButtons[Target];
 	return &m_vTouchButtons.back();
 }
 

@@ -629,8 +629,8 @@ public:
 	bool UnsavedChanges() const { return m_UnsavedChanges; }
 	void SetUnsavedChanges(bool UnsavedChanges) { m_UnsavedChanges = UnsavedChanges; }
 
-	CTouchButton *NewButton(CTouchButton *&pUpdatePointer);
-	void DeleteButton(); 
+	CTouchButton *NewButton();
+	void DeleteButton();
 	std::array<bool, MAXNUMBER> FindExistingExtraMenus();
 	bool IsRectOverlapping(CUnitRect MyRect = {0, 0, BUTTON_SIZE_MINIMUM, BUTTON_SIZE_MINIMUM});
 	CUnitRect UpdatePosition(CUnitRect MyRect, bool Ignore = false); // If Ignore == true, then the function will also try to avoid m_pSelectedButton.
