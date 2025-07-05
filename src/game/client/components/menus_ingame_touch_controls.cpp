@@ -1266,12 +1266,12 @@ void CMenusIngameTouchControls::CacheAllSettingsFromTarget(CTouchControls::CTouc
 }
 
 // Will override everything in the button. If nullptr is passed, a new button will be created.
-void CMenusIngameTouchControls::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *pTargetButton)
+void CMenusIngameTouchControls::SaveCachedSettingsToTarget(CTouchControls::CTouchButton *pTargetButton, CTouchControls::CTouchButton *pUpdatePointer)
 {
 	// Save the cached config to the target button. If no button to save, create a new one, then select it.
 	if(pTargetButton == nullptr)
 	{
-		pTargetButton = GameClient()->m_TouchControls.NewButton();
+		pTargetButton = GameClient()->m_TouchControls.NewButton(pUpdatePointer);
 		// Keep the new button's visibility equal to the last selected one.
 		for(unsigned Iterator = (unsigned)CTouchControls::EButtonVisibility::INGAME; Iterator < (unsigned)CTouchControls::EButtonVisibility::NUM_VISIBILITIES; ++Iterator)
 		{

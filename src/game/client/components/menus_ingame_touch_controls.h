@@ -160,7 +160,7 @@ public:
 	bool CheckCachedSettings();
 	void ResetCachedSettings();
 	void CacheAllSettingsFromTarget(CTouchControls::CTouchButton *pTargetButton);
-	void SaveCachedSettingsToTarget(CTouchControls::CTouchButton *pTargetButton);
+	void SaveCachedSettingsToTarget(CTouchControls::CTouchButton *pTargetButton, CTouchControls::CTouchButton *pUpdatePointer = nullptr);
 	void SetPosInputs(CTouchControls::CUnitRect MyRect);
 	void InputPosFunction(CLineInputNumber *pInput);
 	void UpdateSampleButton();

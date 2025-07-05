@@ -421,7 +421,7 @@ void CMenus::PopupConfirmChangeSelectedButton()
 {
 	if(m_MenusIngameTouchControls.CheckCachedSettings())
 	{
-		m_MenusIngameTouchControls.SaveCachedSettingsToTarget(m_MenusIngameTouchControls.m_pOldSelectedButton);
+		m_MenusIngameTouchControls.SaveCachedSettingsToTarget(m_MenusIngameTouchControls.m_pOldSelectedButton, m_MenusIngameTouchControls.m_pNewSelectedButton);
 		GameClient()->m_TouchControls.SetEditingChanges(true);
 		m_MenusIngameTouchControls.SetUnsavedChanges(false);
 		PopupCancelChangeSelectedButton();

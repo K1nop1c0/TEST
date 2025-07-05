@@ -1755,7 +1755,7 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 	const vec2 ScreenSize = CalculateScreenSize();
 	for(CTouchButton &TouchButton : m_vTouchButtons)
 	{
-		TouchButton.UpdateVisibilityGame();
+		TouchButton.UpdateVisibilityEditor();
 	}
 
 	// Remove if the finger deleted has released.
@@ -1912,6 +1912,11 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 			return;
 		}
 	}
+
+	// Nothing left to do if no button selected.
+	if(m_pSampleButton == nullptr)
+		return;
+
 	// If LongPress == true, LongPress finger has to be outside of all visible buttons.(Except m_pSampleButton. This button hasn't been checked)
 	if(m_LongPress)
 	{
@@ -1921,24 +1926,12 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 		m_LongPressFingerState = std::nullopt;
 		if(m_UnsavedChanges && !IsInside)
 		{
-			if(m_pSelectedButton != nullptr)
-			{
-				m_PopupParam.m_pOldSelectedButton = m_pSelectedButton;
-				m_PopupParam.m_pNewSelectedButton = nullptr;
-				m_PopupParam.m_KeepMenuOpen = false;
-				m_PopupParam.m_PopupType = EPopupType::BUTTON_CHANGED;
-				GameClient()->m_Menus.SetActive(true);
-			}
-			else if(m_pSampleButton != nullptr)
-			{
-				// First nullptr: Save the cached settings to "nullptr", a new button will be created automatically.
-				// Second nullptr: Reset all cached settings to default.
-				m_PopupParam.m_pNewSelectedButton = nullptr;
-				m_PopupParam.m_pOldSelectedButton = nullptr;
-				m_PopupParam.m_KeepMenuOpen = false;
-				m_PopupParam.m_PopupType = EPopupType::BUTTON_CHANGED;
-				GameClient()->m_Menus.SetActive(true);
-			}
+			m_pSampleButton->m_UnitRect = *m_ShownRect;
+			m_PopupParam.m_pNewSelectedButton = nullptr;
+			m_PopupParam.m_pOldSelectedButton = nullptr;
+			m_PopupParam.m_KeepMenuOpen = false;
+			m_PopupParam.m_PopupType = EPopupType::BUTTON_CHANGED;
+			GameClient()->m_Menus.SetActive(true);
 		}
 		else if(!IsInside)
 		{
@@ -2337,8 +2330,11 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(std::vector<CUnitRect> 
 }
 
 // Create a new button and push_back to m_vTouchButton, then return a pointer.
-CTouchControls::CTouchButton *CTouchControls::NewButton()
+CTouchControls::CTouchButton *CTouchControls::NewButton(CTouchButton *&pUpdatePointer)
 {
+	int Target = -1;
+	if(pUpdatePointer != nullptr)
+		Target = std::distance(m_vTouchButtons.data(), pUpdatePointer);
 	CTouchButton NewButton(this);
 	NewButton.m_pBehavior = std::make_unique<CBindTouchButtonBehavior>("", CButtonLabel::EType::PLAIN, "");
 	// So the vector's elements might be moved. If moved all button's m_VisibilityCached will be set to false. This should be prevented.
@@ -2353,6 +2349,8 @@ CTouchControls::CTouchButton *CTouchControls::NewButton()
 		m_vTouchButtons[Iterator].m_VisibilityCached = vCachedVisibilities[Iterator];
 	}
 	m_vTouchButtons.push_back(std::move(NewButton));
+	if(Target != -1)
+		pUpdatePointer = &m_vTouchButtons[Target];
 	return &m_vTouchButtons.back();
 }
 
