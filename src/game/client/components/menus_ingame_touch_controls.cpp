@@ -170,13 +170,13 @@ void CMenusIngameTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 		}
 		else
 		{
-			CTouchControls::CUnitRect FreeRect = GameClient()->m_TouchControls.UpdatePosition(GameClient()->m_TouchControls.ShownRect().value(), m_CachedShape, true);
-			if(FreeRect.m_X == -1)
+			std::optional<CTouchControls::CUnitRect> FreeRect = GameClient()->m_TouchControls.UpdatePosition(GameClient()->m_TouchControls.ShownRect().value(), m_CachedShape, true);
+			if(!FreeRect.has_value())
 			{
-				FreeRect.m_W = CTouchControls::BUTTON_SIZE_MINIMUM;
-				FreeRect.m_H = CTouchControls::BUTTON_SIZE_MINIMUM;
-				FreeRect = GameClient()->m_TouchControls.UpdatePosition(FreeRect, m_CachedShape, true);
-				if(FreeRect.m_X == -1)
+				FreeRect->m_W = CTouchControls::BUTTON_SIZE_MINIMUM;
+				FreeRect->m_H = CTouchControls::BUTTON_SIZE_MINIMUM;
+				FreeRect = GameClient()->m_TouchControls.UpdatePosition(FreeRect.value(), m_CachedShape, true);
+				if(!FreeRect.has_value())
 				{
 					GameClient()->m_Menus.PopupMessage(Localize("No space for button"), Localize("There is not enough space available to place another button."), Localize("Ok"));
 				}
@@ -185,10 +185,10 @@ void CMenusIngameTouchControls::RenderTouchButtonEditor(CUIRect MainView)
 					GameClient()->m_Menus.PopupMessage(Localize("No space for button"), Localize("There is not enough space available to place another button with this size. The button has been resized."), Localize("Ok"));
 				}
 			}
-			if(FreeRect.m_X != -1) // FreeRect might change. Don't use else here.
+			if(FreeRect.has_value()) // FreeRect might change. Don't use else here.
 			{
 				ResetButtonPointers();
-				SetPosInputs(FreeRect);
+				SetPosInputs(FreeRect.value());
 				Changed = true;
 				SetUnsavedChanges(true);
 			}
@@ -1343,10 +1343,15 @@ void CMenusIngameTouchControls::ResetButtonPointers()
 // New button doesn't create a real button, instead it reset the Samplebutton to cache every setting. When saving a the Samplebutton then a real button will be created.
 void CMenusIngameTouchControls::NewVirtualButton()
 {
-	CTouchControls::CUnitRect FreeRect = GameClient()->m_TouchControls.UpdatePosition({0, 0, CTouchControls::BUTTON_SIZE_MINIMUM, CTouchControls::BUTTON_SIZE_MINIMUM}, CTouchControls::EButtonShape::RECT, true);
+	std::optional<CTouchControls::CUnitRect> FreeRect = GameClient()->m_TouchControls.UpdatePosition({0, 0, CTouchControls::BUTTON_SIZE_MINIMUM, CTouchControls::BUTTON_SIZE_MINIMUM}, CTouchControls::EButtonShape::RECT, true);
+	if(!FreeRect.has_value())
+	{
+		GameClient()->m_Menus.PopupMessage(Localize("No space for button"), Localize("There is not enough space available to place another button."), Localize("Ok"));
+		return;
+	}
 	ResetButtonPointers();
 	ResetCachedSettings();
-	SetPosInputs(FreeRect);
+	SetPosInputs(FreeRect.value());
 	UpdateSampleButton();
 	SetUnsavedChanges(true);
 }

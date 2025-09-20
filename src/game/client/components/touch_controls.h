@@ -599,7 +599,8 @@ private:
 	int m_LastWidth = -10;
 	int m_LastHeight = -10;
 	void BuildPositionXY(std::vector<CUnitRect> vVisibleButtonRects, CUnitRect MyRect);
-	CUnitRect FindPositionXY(std::vector<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect);
+	std::optional<CUnitRect> FindPositionXY(const std::vector<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect);
+	CUnitRect FindSizeWH(std::vector<CUnitRect> vVisibleButtonRects, CUnitRect MyRect);
 
 	// This is how editor render buttons.
 	void RenderButtonsEditor();
@@ -630,7 +631,7 @@ public:
 	CTouchButton *NewButton();
 	void DeleteSelectedButton();
 	bool IsRectOverlapping(CUnitRect MyRect, EButtonShape Shape) const;
-	CUnitRect UpdatePosition(CUnitRect MyRect, EButtonShape Shape, bool Ignore = false); // If Ignore == true, then the function will also try to avoid m_pSelectedButton.
+	std::optional<CUnitRect> UpdatePosition(CUnitRect MyRect, EButtonShape Shape, bool Ignore = false); // If Ignore == true, then the function will also try to avoid m_pSelectedButton.
 	void ResetButtonPointers();
 	void ResetVirtualVisibilities();
 	CUIRect CalculateScreenFromUnitRect(CUnitRect Unit, EButtonShape Shape = EButtonShape::RECT) const;

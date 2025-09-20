@@ -1778,7 +1778,7 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 	   }))
 	{
 		// If has different finger, reset the accumulated delta.
-		if(m_LongPressFingerState.has_value() && (*m_LongPressFingerState).m_Finger != vTouchFingerStates[0].m_Finger)
+		if(m_LongPressFingerState.has_value() && m_LongPressFingerState->m_Finger != vTouchFingerStates[0].m_Finger)
 			m_AccumulatedDelta = vec2(0.0f, 0.0f);
 		// Update the LongPress candidate state.
 		m_LongPressFingerState = vTouchFingerStates[0];
@@ -1792,7 +1792,7 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 	// Find long press button. LongPress == true means the first fingerstate long pressed.
 	if(m_LongPressFingerState.has_value())
 	{
-		m_AccumulatedDelta += (*m_LongPressFingerState).m_Delta;
+		m_AccumulatedDelta += m_LongPressFingerState->m_Delta;
 		// If slided, then delete.
 		if(length(m_AccumulatedDelta) > 0.005f)
 		{
@@ -1805,7 +1805,7 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 		else
 		{
 			const auto Now = time_get_nanoseconds();
-			if(!m_PreventSaving && Now - (*m_LongPressFingerState).m_PressTime > LONG_TOUCH_DURATION)
+			if(!m_PreventSaving && Now - m_LongPressFingerState->m_PressTime > LONG_TOUCH_DURATION)
 			{
 				LongPress = true;
 				m_vDeletedFingerState.push_back(*m_LongPressFingerState);
@@ -1857,7 +1857,7 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 			if(m_pSelectedButton == &TouchButton)
 				continue;
 			// Only Long Pressed finger "in visible button" is used for selecting a button.
-			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside((*m_LongPressFingerState).m_Position * ScreenSize))
+			if(LongPress && !vTouchFingerStates.empty() && TouchButton.IsInside(m_LongPressFingerState->m_Position * ScreenSize))
 			{
 				// If m_pSelectedButton changes, Confirm if saving changes, then change.
 				// LongPress used.
@@ -1882,15 +1882,16 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 				// Update illegal position when Long press the button. Or later it will keep saying unsavedchanges.
 				if(IsRectOverlapping(TouchButton.m_UnitRect, TouchButton.m_Shape))
 				{
-					TouchButton.m_UnitRect = UpdatePosition(TouchButton.m_UnitRect, TouchButton.m_Shape);
-					m_UnsavedChanges = true;
-					if(TouchButton.m_UnitRect.m_X == -1)
+					std::optional<CUnitRect> Result = UpdatePosition(TouchButton.m_UnitRect, TouchButton.m_Shape);
+					if(!Result.has_value())
 					{
 						m_PopupParam.m_PopupType = EPopupType::NO_SPACE;
 						m_PopupParam.m_KeepMenuOpen = true;
 						GameClient()->m_Menus.SetActive(true);
 						return;
 					}
+					m_UnsavedChanges = true;
+					TouchButton.m_UnitRect = Result.value();
 					TouchButton.UpdateScreenFromUnitRect();
 				}
 				m_aIssueParam[(int)EIssueType::CACHE_SETTINGS].m_pTargetButton = m_pSelectedButton;
@@ -1970,62 +1971,8 @@ void CTouchControls::UpdateButtonsEditor(const std::vector<IInput::CTouchFingerS
 			UnitWHDelta.y = (std::abs(m_ActiveFingerState.value().m_Position.y - m_ZoomFingerState.value().m_Position.y) - std::abs(m_ZoomStartPos.y)) * BUTTON_SIZE_SCALE;
 			m_ShownRect->m_W = m_pSampleButton->m_UnitRect.m_W + UnitWHDelta.x;
 			m_ShownRect->m_H = m_pSampleButton->m_UnitRect.m_H + UnitWHDelta.y;
-			m_ShownRect->m_W = std::clamp(m_ShownRect->m_W, BUTTON_SIZE_MINIMUM, BUTTON_SIZE_MAXIMUM);
-			m_ShownRect->m_H = std::clamp(m_ShownRect->m_H, BUTTON_SIZE_MINIMUM, BUTTON_SIZE_MAXIMUM);
-			if(m_ShownRect->m_W + m_ShownRect->m_X > BUTTON_SIZE_SCALE)
-				m_ShownRect->m_W = BUTTON_SIZE_SCALE - m_ShownRect->m_X;
-			if(m_ShownRect->m_H + m_ShownRect->m_Y > BUTTON_SIZE_SCALE)
-				m_ShownRect->m_H = BUTTON_SIZE_SCALE - m_ShownRect->m_Y;
-			// Clamp the biggest W and H so they won't overlap with other buttons. Known as "FindPositionWH".
-			std::optional<int> BiggestW;
-			std::optional<int> BiggestH;
-			std::optional<int> LimitH, LimitW;
-			for(const auto &Rect : vVisibleButtonRects)
-			{
-				// If Overlap
-				if(!(Rect.m_X + Rect.m_W <= m_ShownRect->m_X || m_ShownRect->m_X + m_ShownRect->m_W <= Rect.m_X || Rect.m_Y + Rect.m_H <= m_ShownRect->m_Y || m_ShownRect->m_Y + m_ShownRect->m_H <= Rect.m_Y))
-				{
-					// Calculate the biggest Height and Width it could have.
-					LimitH = Rect.m_Y - m_ShownRect->m_Y;
-					LimitW = Rect.m_X - m_ShownRect->m_X;
-					if(LimitH < BUTTON_SIZE_MINIMUM)
-						LimitH = std::nullopt;
-					if(LimitW < BUTTON_SIZE_MINIMUM)
-						LimitW = std::nullopt;
-					if(LimitH.has_value() && LimitW.has_value())
-					{
-						if(std::abs(*LimitH - m_ShownRect->m_H) < std::abs(*LimitW - m_ShownRect->m_W))
-						{
-							BiggestH = std::min(*LimitH, BiggestH.value_or(BUTTON_SIZE_SCALE));
-						}
-						else
-						{
-							BiggestW = std::min(*LimitW, BiggestW.value_or(BUTTON_SIZE_SCALE));
-						}
-					}
-					else
-					{
-						if(LimitH.has_value())
-							BiggestH = std::min(*LimitH, BiggestH.value_or(BUTTON_SIZE_SCALE));
-						else if(LimitW.has_value())
-							BiggestW = std::min(*LimitW, BiggestW.value_or(BUTTON_SIZE_SCALE));
-						else
-						{
-							/*
-							 * LimitH and W can be nullopt at the same time, because two buttons may be overlapping.
-							 * Holding for long press while another finger is pressed.
-							 * Then it will instantly enter zoom mode while buttons are overlapping with each other.
-							 */
-							m_ShownRect = FindPositionXY(vVisibleButtonRects, CalculateHitbox(m_pSampleButton->m_UnitRect, m_pSampleButton->m_Shape));
-							BiggestW = std::nullopt;
-							BiggestH = std::nullopt;
-							break;
-						}
-					}
-				}
-			}
-			m_ShownRect->m_W = BiggestW.value_or(m_ShownRect->m_W);
-			m_ShownRect->m_H = BiggestH.value_or(m_ShownRect->m_H);
+			m_ShownRect = CalculateHitbox(m_ShownRect.value(), m_pSampleButton->m_Shape);
+			FindSizeWH(vVisibleButtonRects, m_ShownRect.value());
 			m_UnsavedChanges = true;
 		}
 		// No finger on screen, then show it as is.
@@ -2077,7 +2024,7 @@ void CTouchControls::RenderButtonsEditor()
 	}
 }
 
-CTouchControls::CUnitRect CTouchControls::FindPositionXY(std::vector<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect)
+std::optional<CTouchControls::CUnitRect> CTouchControls::FindPositionXY(const std::vector<CUnitRect> &vVisibleButtonRects, CUnitRect MyRect)
 {
 	// Border clamp
 	MyRect.m_X = std::clamp(MyRect.m_X, 0, BUTTON_SIZE_SCALE - MyRect.m_W);
@@ -2097,11 +2044,12 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(std::vector<CUnitRect> 
 		m_vLastUpdateRects = vVisibleButtonRects;
 		BuildPositionXY(m_vLastUpdateRects, MyRect);
 	}
-	CUnitRect Result = {-1, -1, MyRect.m_W, MyRect.m_H}, SampleRect;
+	std::optional<CUnitRect> Result;
+	CUnitRect SampleRect;
 	for(const ivec2 &Target : m_vTargets)
 	{
 		SampleRect = {Target.x, Target.y, MyRect.m_W, MyRect.m_H};
-		if(Result.m_X == -1 || MyRect.Distance(Result) > MyRect.Distance(SampleRect))
+		if(!Result.has_value() || MyRect.Distance(Result.value()) > MyRect.Distance(SampleRect))
 			Result = SampleRect;
 	}
 	int BestXPosition = -BUTTON_SIZE_SCALE, BestYPosition = -BUTTON_SIZE_SCALE, Cur = 0;
@@ -2152,13 +2100,13 @@ CTouchControls::CUnitRect CTouchControls::FindPositionXY(std::vector<CUnitRect> 
 	if(BestXPosition != -BUTTON_SIZE_SCALE)
 	{
 		SampleRect = {BestXPosition, MyRect.m_Y, MyRect.m_W, MyRect.m_H};
-		if(Result.m_X == -1 || MyRect.Distance(Result) > MyRect.Distance(SampleRect))
+		if(!Result.has_value() || MyRect.Distance(Result.value()) > MyRect.Distance(SampleRect))
 			Result = SampleRect;
 	}
 	if(BestYPosition != -BUTTON_SIZE_SCALE)
 	{
 		SampleRect = {MyRect.m_X, BestYPosition, MyRect.m_W, MyRect.m_H};
-		if(Result.m_X == -1 || MyRect.Distance(Result) > MyRect.Distance(SampleRect))
+		if(!Result.has_value() || MyRect.Distance(Result.value()) > MyRect.Distance(SampleRect))
 			Result = SampleRect;
 	}
 	return Result;
@@ -2374,6 +2322,71 @@ void CTouchControls::BuildPositionXY(std::vector<CUnitRect> vVisibleButtonRects,
 	}
 }
 
+// As FindPositionXY called earlier, this function can never fail.
+CTouchControls::CUnitRect CTouchControls::FindSizeWH(std::vector<CUnitRect> vVisibleButtonRects, CUnitRect MyRect)
+{
+	MyRect.m_W = std::clamp(MyRect.m_W, BUTTON_SIZE_MINIMUM, BUTTON_SIZE_MAXIMUM);
+	MyRect.m_H = std::clamp(MyRect.m_H, BUTTON_SIZE_MINIMUM, BUTTON_SIZE_MAXIMUM);
+	MyRect.m_W = std::min(MyRect.m_W, BUTTON_SIZE_SCALE - MyRect.m_X);
+	MyRect.m_H = std::min(MyRect.m_H, BUTTON_SIZE_SCALE - MyRect.m_Y);
+	// To ensure every rect in the vector is overlapping with MyRect.
+	vVisibleButtonRects.erase(std::remove_if(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [&](const CUnitRect TargetRect) {
+		return MyRect.IsOverlap(TargetRect);
+	}),
+		vVisibleButtonRects.end());
+	if(vVisibleButtonRects.empty())
+		return MyRect;
+
+	// Lower x with higher y has more priority.
+	std::sort(vVisibleButtonRects.begin(), vVisibleButtonRects.end(), [](const CUnitRect &Lhs, const CUnitRect &Rhs) {
+		return Lhs.m_X != Rhs.m_X ? Lhs.m_X < Rhs.m_X : Lhs.m_Y > Rhs.m_Y;
+	});
+
+	// Delete rects that has no impact on the answer(Same as std::remove_if).
+	unsigned Read = 1, Write = 1, Comp = 0;
+	while(Read < vVisibleButtonRects.size())
+	{
+		if(vVisibleButtonRects[Comp].m_Y + vVisibleButtonRects[Comp].m_H >= vVisibleButtonRects[Read].m_Y + vVisibleButtonRects[Read].m_H)
+		{
+			Read++;
+			continue;
+		}
+		vVisibleButtonRects[Write] = vVisibleButtonRects[Read];
+		Comp = Write;
+		Write++;
+		Read++;
+	}
+	vVisibleButtonRects.erase(vVisibleButtonRects.begin() + Write, vVisibleButtonRects.end());
+
+	std::optional<int> Delta;
+	CUnitRect Result = MyRect;
+	for(unsigned Index = 0; Index < vVisibleButtonRects.size() - 1; Index++)
+	{
+		int LimitH = vVisibleButtonRects[Index].m_Y - MyRect.m_Y;
+		int LimitW = vVisibleButtonRects[Index + 1].m_X - MyRect.m_X;
+		if(std::min(LimitH, LimitW) >= BUTTON_SIZE_MINIMUM &&
+			Delta.value_or(INT_MAX) > MyRect.m_H + MyRect.m_W - LimitH - LimitW)
+		{
+			Delta = MyRect.m_H + MyRect.m_W - LimitH - LimitW;
+			Result.m_H = LimitH;
+			Result.m_W = LimitW;
+		}
+	}
+	int LimitH = vVisibleButtonRects.back().m_Y - MyRect.m_Y, LimitW = vVisibleButtonRects.front().m_X - MyRect.m_X;
+	if(LimitH >= BUTTON_SIZE_MINIMUM && Delta.value_or(INT_MAX) > LimitH)
+	{
+		Delta = LimitH;
+		Result.m_H = LimitH;
+		Result.m_W = MyRect.m_W;
+	}
+	if(LimitW >= BUTTON_SIZE_MINIMUM && Delta.value_or(INT_MAX) > LimitW)
+	{
+		Result.m_H = MyRect.m_H;
+		Result.m_W = LimitW;
+	}
+	return Result;
+}
+
 // Create a new button and push_back to m_vTouchButton, then return a pointer.
 CTouchControls::CTouchButton *CTouchControls::NewButton()
 {
@@ -2427,7 +2440,7 @@ bool CTouchControls::IsRectOverlapping(CUnitRect MyRect, EButtonShape Shape) con
 	return false;
 }
 
-CTouchControls::CUnitRect CTouchControls::UpdatePosition(CUnitRect MyRect, EButtonShape Shape, bool Ignore)
+std::optional<CTouchControls::CUnitRect> CTouchControls::UpdatePosition(CUnitRect MyRect, EButtonShape Shape, bool Ignore)
 {
 	MyRect = CalculateHitbox(MyRect, Shape);
 	std::vector<CUnitRect> vVisibleButtonRects;
